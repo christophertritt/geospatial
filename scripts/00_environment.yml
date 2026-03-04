@@ -1,0 +1,24 @@
+name: cvlz_analysis
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - geopandas>=0.14
+  - pandas>=2.0
+  - numpy>=1.26
+  - shapely>=2.0
+  - matplotlib>=3.8
+  - contextily>=1.5
+  - osmnx>=1.9
+  - networkx>=3.2
+  - scikit-learn>=1.4
+  - requests>=2.31
+  - pyproj>=3.6
+  - fiona>=1.9
+  - tqdm>=4.66
+  - jupyter
+  - pip
+  - pip:
+    - sodapy>=2.2
+    - mapclassify>=2.6
