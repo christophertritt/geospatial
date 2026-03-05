@@ -153,6 +153,23 @@ header {
 }
 .filter-select:focus, .filter-input:focus { border-color: var(--uw-purple); }
 
+/* Info blocks */
+.info-card {
+  background: #F1F5F9; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; box-shadow: var(--shadow-sm);
+}
+.info-title {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
+}
+.info-list { list-style: disc; padding-left: 16px; color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
+.info-list strong { color: var(--text-primary); }
+.mini-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.mini-table th, .mini-table td { font-family: var(--font-sans); font-size: 10px; padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.mini-table th { text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font-family: var(--font-sans); font-size: 10px; padding: 4px 7px; border-radius: 999px; border: 1px solid var(--border); background: #EEF2F6; color: var(--text-secondary); }
+
 /* Score range slider */
 .range-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .range-row input[type=range] {
@@ -505,6 +522,40 @@ header {
       </div>
     </div>
 
+    <!-- About / Methods -->
+    <div class="sb-section">
+      <div class="sb-heading">About & Methods</div>
+      <div class="info-card">
+        <div class="info-title">What you're seeing</div>
+        <ul class="info-list">
+          <li><strong>Effectiveness Score (0–100)</strong> blends demand, network importance, turnover, and temporal coverage.</li>
+          <li><strong>Coverage</strong> uses the pedestrian network; main walking distance is 100 m (50 m strict, 150 m sensitivity).</li>
+          <li><strong>DCR</strong> (demand-to-capacity) flags loading stress in 100 m grid cells; gap clusters highlight unmet demand.</li>
+          <li><strong>Zones</strong> come from SDOT Street Signs; demand from parcels + King County GFA/units; network from OSMnx.</li>
+        </ul>
+        <div class="info-title" style="margin-top:10px;">Land-use demand weights</div>
+        <table class="mini-table">
+          <thead><tr><th>Category</th><th>Weight</th><th>Size basis</th></tr></thead>
+          <tbody>
+            <tr><td>Grocery</td><td>5.0</td><td>per 1k sqft</td></tr>
+            <tr><td>Restaurant</td><td>3.5</td><td>per 1k sqft</td></tr>
+            <tr><td>Retail</td><td>2.0</td><td>per 1k sqft</td></tr>
+            <tr><td>Personal svc</td><td>1.5</td><td>per 1k sqft</td></tr>
+            <tr><td>Mixed-use</td><td>0.8</td><td>per unit</td></tr>
+            <tr><td>Office</td><td>0.4</td><td>per 1k sqft</td></tr>
+            <tr><td>Other</td><td>0.1</td><td>per 1k sqft</td></tr>
+          </tbody>
+        </table>
+        <div class="info-title" style="margin-top:10px;">Outputs shown</div>
+        <div class="chip-row">
+          <span class="chip">Coverage (WCR/PCR) by center</span>
+          <span class="chip">DCR heat (100 m grid)</span>
+          <span class="chip">Gap parcels & clusters</span>
+          <span class="chip">CVLZ service areas</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Tier Filter Legend -->
     <div class="sb-section">
       <div class="sb-heading">Effectiveness Tier</div>
@@ -559,6 +610,13 @@ header {
       <div class="layer-sep"></div>
       <button class="layer-btn buf-btn" id="lb-buffer" onclick="toggleBuffers()">100m Demand Buffers</button>
       <button class="layer-btn buf-btn" id="lb-heat" onclick="toggleHeat()">Demand Heatmap</button>
+    </div>
+    <div style="padding:6px 16px 10px; font-family:var(--font-sans); font-size:11px; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+      <span style="font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted);">Method notes:</span>
+      <span class="chip">Network distance (walk)</span>
+      <span class="chip">Primary threshold: 100 m</span>
+      <span class="chip">Strict 50 m • Lenient 150 m</span>
+      <span class="chip">Gap clusters = uncovered demand</span>
     </div>
 
     <!-- Map -->
