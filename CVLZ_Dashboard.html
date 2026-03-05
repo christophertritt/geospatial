@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVLZ Effectiveness · PSRC Urban Centers · Seattle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --uw-purple:      #4B2E83;
+  --uw-purple-dark: #2A1A4E;
+  --uw-purple-mid:  #6A4BAA;
+  --uw-purple-pale: #EDE8F5;
+  --uw-gold:        #B7A57A;
+  --uw-gold-dark:   #85754D;
+  --uw-gold-pale:   #F4EDD8;
+  --bg:             #F0EDE8;
+  --card:           #FFFFFF;
+  --border:         #DDD7CE;
+  --text-primary:   #1A1A2E;
+  --text-secondary: #5C5470;
+  --text-muted:     #8A8399;
+  --tier-high:      #2D6A4F;
+  --tier-high-bg:   #D8F3DC;
+  --tier-med:       #C67C00;
+  --tier-med-bg:    #FFF0C4;
+  --tier-low:       #C62828;
+  --tier-low-bg:    #FFEBEE;
+  --shadow-sm:      0 1px 4px rgba(26,26,46,.08);
+  --shadow-md:      0 3px 12px rgba(26,26,46,.12);
+  --radius:         10px;
+  --radius-sm:      6px;
+  --font-sans:      'Montserrat', system-ui, sans-serif;
+  --font-serif:     'Merriweather', Georgia, serif;
+}
+html, body { height: 100%; overflow: hidden; background: var(--bg); }
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT — header / sidebar / map / bottom-panel
+═══════════════════════════════════════════════════════════════ */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Header ── */
+header {
+  background: linear-gradient(135deg, var(--uw-purple-dark) 0%, var(--uw-purple) 60%, var(--uw-purple-mid) 100%);
+  color: #fff;
+  padding: 0 20px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 3px solid var(--uw-gold);
+}
+.hdr-badge {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--uw-gold); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--uw-purple-dark);
+  flex-shrink: 0;
+}
+.hdr-titles h1 {
+  font-family: var(--font-sans); font-size: 16px; font-weight: 700; letter-spacing: .2px; line-height: 1.1;
+}
+.hdr-titles p {
+  font-family: var(--font-serif); font-size: 11px; font-weight: 300; opacity: .8; letter-spacing: .3px;
+}
+.hdr-spacer { flex: 1; }
+.hdr-meta {
+  display: flex; gap: 8px; align-items: center;
+}
+.hdr-pill {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: .6px;
+  padding: 3px 9px; border-radius: 20px; text-transform: uppercase;
+}
+.hdr-pill.modeled { background: rgba(183,165,122,.25); color: var(--uw-gold); border: 1px solid rgba(183,165,122,.4); }
+.hdr-pill.psrc    { background: rgba(255,255,255,.12); color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.2); }
+
+/* ── Body: sidebar + map content ── */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 290px; flex-shrink: 0;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sb-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-section:last-child { border-bottom: none; }
+.sb-heading {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--uw-purple);
+  margin-bottom: 10px;
+}
+
+/* KPI grid */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kpi-card {
+  background: var(--bg); border-radius: var(--radius-sm); padding: 10px 11px;
+  border: 1px solid var(--border);
+}
+.kpi-card.accent { background: var(--uw-purple-pale); border-color: rgba(75,46,131,.15); }
+.kpi-label {
+  font-family: var(--font-sans); font-size: 9px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--text-muted); margin-bottom: 3px;
+}
+.kpi-value {
+  font-family: var(--font-sans); font-size: 22px; font-weight: 700;
+  color: var(--uw-purple); line-height: 1;
+}
+.kpi-sub {
+  font-family: var(--font-serif); font-size: 10px; color: var(--text-secondary);
+  font-style: italic; margin-top: 2px;
+}
+
+/* Filters */
+.filter-group { margin-bottom: 10px; }
+.filter-group:last-child { margin-bottom: 0; }
+.filter-label {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--text-secondary); margin-bottom: 5px; display: block;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.filter-select, .filter-input {
+  width: 100%; padding: 7px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  font-family: var(--font-sans); font-size: 12px; color: var(--text-primary);
+  outline: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235C5470'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  cursor: pointer;
+}
+.filter-select:focus, .filter-input:focus { border-color: var(--uw-purple); }
+
+/* Score range slider */
+.range-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.range-row input[type=range] {
+  flex: 1; accent-color: var(--uw-purple); cursor: pointer;
+}
+.range-val {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--uw-purple); min-width: 28px; text-align: right;
+}
+
+/* Tier legend in sidebar */
+.tier-legend { display: flex; flex-direction: column; gap: 5px; }
+.tier-row {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  transition: background .15s;
+  border: 1px solid transparent;
+}
+.tier-row:hover { background: var(--bg); }
+.tier-row.active { background: var(--bg); border-color: var(--border); }
+.tier-dot {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+}
+.tier-row-label {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--text-primary); flex: 1;
+}
+.tier-count {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--text-muted);
+}
+
+/* Mini chart canvas */
+.mini-chart-wrap { position: relative; height: 160px; }
+
+/* ── Map content area ── */
+.map-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Layer toggle bar */
+.layer-bar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 8px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.layer-bar-label {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--text-muted); margin-right: 4px;
+}
+.layer-btn {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-secondary); cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.layer-btn:hover { border-color: var(--uw-purple); color: var(--uw-purple); }
+.layer-btn.active {
+  background: var(--uw-purple); border-color: var(--uw-purple);
+  color: #fff; box-shadow: 0 2px 6px rgba(75,46,131,.3);
+}
+.layer-btn.buf-btn {
+  background: transparent; border: 1px dashed var(--border);
+  color: var(--text-muted);
+}
+.layer-btn.buf-btn.active {
+  background: rgba(75,46,131,.08); border-color: var(--uw-purple); color: var(--uw-purple);
+}
+.layer-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+/* Map container */
+#map { flex: 1; min-height: 0; z-index: 1; }
+
+/* ── Bottom panel ── */
+.bottom-panel {
+  height: 220px; flex-shrink: 0;
+  background: var(--card); border-top: 1px solid var(--border);
+  display: flex; overflow: hidden;
+}
+.bp-tab-bar {
+  width: 38px; flex-shrink: 0; background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; padding-top: 10px; gap: 6px;
+}
+.bp-tab {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-family: var(--font-sans); font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; padding: 10px 6px; cursor: pointer; color: var(--text-muted);
+  border-radius: var(--radius-sm); transition: all .15s; border: none; background: none;
+}
+.bp-tab:hover { color: var(--uw-purple); background: var(--uw-purple-pale); }
+.bp-tab.active { color: var(--uw-purple); background: var(--uw-purple-pale); }
+.bp-panel { flex: 1; display: none; overflow: hidden; }
+.bp-panel.active { display: flex; }
+
+/* Table panel */
+.bp-table-wrap { flex: 1; overflow: auto; padding: 0 4px; }
+.bp-table-wrap::-webkit-scrollbar { height: 4px; width: 4px; }
+.bp-table-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+.data-table {
+  width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 11.5px;
+}
+.data-table thead tr {
+  background: var(--bg); position: sticky; top: 0; z-index: 2;
+}
+.data-table thead th {
+  padding: 8px 12px; text-align: left; font-weight: 700; font-size: 10px;
+  text-transform: uppercase; letter-spacing: .6px; color: var(--text-secondary);
+  border-bottom: 2px solid var(--border); cursor: pointer; white-space: nowrap;
+  user-select: none;
+}
+.data-table thead th:hover { color: var(--uw-purple); }
+.data-table tbody tr { transition: background .1s; cursor: pointer; }
+.data-table tbody tr:hover { background: var(--uw-purple-pale); }
+.data-table tbody tr.highlighted { background: #EDE8F5; }
+.data-table tbody td {
+  padding: 7px 12px; border-bottom: 1px solid #F4F1EC; color: var(--text-primary);
+  white-space: nowrap;
+}
+.tier-badge {
+  display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .6px;
+  padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
+}
+.tier-badge.HIGH { background: var(--tier-high-bg); color: var(--tier-high); }
+.tier-badge.MEDIUM { background: var(--tier-med-bg); color: var(--tier-med); }
+.tier-badge.LOW { background: var(--tier-low-bg); color: var(--tier-low); }
+
+/* Charts panel */
+.bp-charts { display: flex; flex: 1; gap: 0; overflow: hidden; }
+.bp-chart-card {
+  flex: 1; padding: 12px 16px; border-right: 1px solid var(--border); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.bp-chart-card:last-child { border-right: none; }
+.bp-chart-title {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); margin-bottom: 6px; letter-spacing: .2px;
+}
+.bp-chart-canvas { flex: 1; min-height: 0; position: relative; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MAP POPUP
+═══════════════════════════════════════════════════════════════ */
+.cvlz-popup {
+  font-family: var(--font-sans); min-width: 240px; max-width: 280px;
+}
+.popup-top {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
+}
+.popup-tier {
+  font-size: 9px; font-weight: 700; letter-spacing: .7px; padding: 3px 8px;
+  border-radius: 20px; text-transform: uppercase; flex-shrink: 0;
+}
+.popup-tier.HIGH { background: var(--tier-high-bg); color: var(--tier-high); }
+.popup-tier.MEDIUM { background: var(--tier-med-bg); color: var(--tier-med); }
+.popup-tier.LOW { background: var(--tier-low-bg); color: var(--tier-low); }
+.popup-uc {
+  font-size: 9px; font-weight: 600; letter-spacing: .5px; padding: 3px 8px;
+  border-radius: 20px; text-transform: uppercase;
+  background: var(--uw-purple-pale); color: var(--uw-purple);
+}
+.popup-name {
+  font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+  color: var(--text-primary); line-height: 1.2; margin-bottom: 2px;
+}
+.popup-sub {
+  font-family: var(--font-serif); font-size: 11px; color: var(--text-muted);
+  font-style: italic; margin-bottom: 10px;
+}
+.popup-score-big {
+  text-align: center; margin-bottom: 10px;
+  background: var(--bg); border-radius: var(--radius-sm); padding: 8px;
+}
+.popup-score-num {
+  font-family: var(--font-sans); font-size: 30px; font-weight: 700;
+  color: var(--uw-purple); line-height: 1;
+}
+.popup-score-denom {
+  font-family: var(--font-sans); font-size: 14px; color: var(--text-muted); font-weight: 500;
+}
+.popup-score-label {
+  font-family: var(--font-serif); font-size: 10px; color: var(--text-muted);
+  font-style: italic; margin-top: 2px;
+}
+/* Score bars */
+.score-rows { margin-bottom: 10px; }
+.score-row-item {
+  display: grid; grid-template-columns: 90px 1fr 42px; align-items: center;
+  gap: 6px; margin-bottom: 5px;
+}
+.score-row-label {
+  font-size: 10px; font-weight: 600; color: var(--text-secondary);
+}
+.score-bar-bg {
+  height: 7px; background: #EDE9E3; border-radius: 4px; overflow: hidden;
+}
+.score-bar-fill { height: 100%; border-radius: 4px; }
+.score-row-val {
+  font-size: 10px; font-weight: 700; color: var(--text-primary); text-align: right;
+}
+/* Attributes */
+.popup-attrs {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+  border-top: 1px solid var(--border); padding-top: 6px;
+}
+.popup-attrs tr td:first-child {
+  color: var(--text-muted); font-weight: 500; padding: 2px 0; width: 50%;
+}
+.popup-attrs tr td:last-child {
+  color: var(--text-primary); font-weight: 600; text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LEAFLET OVERRIDES
+═══════════════════════════════════════════════════════════════ */
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-md) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.leaflet-popup-content { margin: 14px 16px !important; }
+.leaflet-popup-tip-container { margin-top: -1px; }
+
+/* Map legend overlay */
+#map-legend {
+  position: absolute; bottom: 28px; right: 10px; z-index: 900;
+  background: rgba(255,255,255,.95); backdrop-filter: blur(4px);
+  border-radius: var(--radius); padding: 12px 14px;
+  box-shadow: var(--shadow-md); border: 1px solid var(--border);
+  min-width: 160px; max-width: 200px;
+  font-family: var(--font-sans);
+}
+#map-legend-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--uw-purple); margin-bottom: 8px;
+}
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.legend-swatch {
+  width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,.1);
+}
+.legend-swatch.rect { border-radius: 3px; }
+.legend-text { font-size: 11px; color: var(--text-primary); font-weight: 500; }
+.legend-sub { font-size: 9px; color: var(--text-muted); }
+.legend-gradient {
+  height: 10px; border-radius: 5px; margin-bottom: 4px;
+}
+.legend-grad-labels { display: flex; justify-content: space-between; }
+.legend-grad-labels span { font-size: 9px; color: var(--text-muted); }
+
+/* UC label overlay */
+.uc-tooltip {
+  background: var(--uw-purple); color: #fff; border: none;
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700;
+  letter-spacing: .4px; padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+}
+.uc-tooltip::before { border-top-color: var(--uw-purple) !important; }
+
+/* Heatmap toggle */
+.heat-notice {
+  position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+  z-index: 900; background: var(--uw-purple); color: #fff;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 20px; pointer-events: none;
+  opacity: 0; transition: opacity .3s;
+  white-space: nowrap;
+}
+.heat-notice.visible { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR GLOBAL
+═══════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="hdr-badge">UW</div>
+  <div class="hdr-titles">
+    <h1>Commercial Vehicle Loading Zone Effectiveness</h1>
+    <p>PSRC Urban Centers &nbsp;·&nbsp; Seattle, WA &nbsp;·&nbsp; 100-Point Scoring Model</p>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="hdr-meta">
+    <span class="hdr-pill modeled">Modeled Framework</span>
+    <span class="hdr-pill psrc">PSRC Vision 2050</span>
+  </div>
+</header>
+
+<!-- ═══ BODY ═══ -->
+<div class="body">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+
+    <!-- KPIs -->
+    <div class="sb-section">
+      <div class="sb-heading">Overview</div>
+      <div class="kpi-grid">
+        <div class="kpi-card accent">
+          <div class="kpi-label">Total CVLZs</div>
+          <div class="kpi-value" id="kpi-total">156</div>
+          <div class="kpi-sub">analyzed zones</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Score</div>
+          <div class="kpi-value" id="kpi-avg">—</div>
+          <div class="kpi-sub">out of 100</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">High Tier</div>
+          <div class="kpi-value" id="kpi-high" style="color:var(--tier-high)">—</div>
+          <div class="kpi-sub" id="kpi-high-pct">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Urban Centers</div>
+          <div class="kpi-value">6</div>
+          <div class="kpi-sub">PSRC designated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="sb-section">
+      <div class="sb-heading">Filters</div>
+      <div class="filter-group">
+        <label class="filter-label">Urban Center</label>
+        <select id="f-uc" class="filter-select" onchange="applyFilters()">
+          <option value="all">All Centers</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Street Type</label>
+        <select id="f-stype" class="filter-select" onchange="applyFilters()">
+          <option value="all">All Types</option>
+          <option value="arterial">Arterial</option>
+          <option value="collector">Collector</option>
+          <option value="local">Local</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Min Effectiveness Score: <span id="score-val">0</span></label>
+        <div class="range-row">
+          <input type="range" id="f-score" min="0" max="100" value="0"
+                 oninput="document.getElementById('score-val').textContent=this.value; applyFilters()">
+          <span class="range-val" id="range-disp">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier Filter Legend -->
+    <div class="sb-section">
+      <div class="sb-heading">Effectiveness Tier</div>
+      <div class="tier-legend">
+        <div class="tier-row active" id="tr-HIGH" onclick="toggleTier('HIGH')">
+          <div class="tier-dot" style="background:#2D6A4F"></div>
+          <span class="tier-row-label">High (≥ 75)</span>
+          <span class="tier-count" id="tc-HIGH">—</span>
+        </div>
+        <div class="tier-row active" id="tr-MEDIUM" onclick="toggleTier('MEDIUM')">
+          <div class="tier-dot" style="background:#E9C46A"></div>
+          <span class="tier-row-label">Medium (55–74)</span>
+          <span class="tier-count" id="tc-MEDIUM">—</span>
+        </div>
+        <div class="tier-row active" id="tr-LOW" onclick="toggleTier('LOW')">
+          <div class="tier-dot" style="background:#C62828"></div>
+          <span class="tier-row-label">Low (&lt; 55)</span>
+          <span class="tier-count" id="tc-LOW">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini donut chart -->
+    <div class="sb-section">
+      <div class="sb-heading">Score Components (Avg)</div>
+      <div class="mini-chart-wrap">
+        <canvas id="mini-radar"></canvas>
+      </div>
+    </div>
+
+    <!-- Data note -->
+    <div class="sb-section" style="background:var(--uw-gold-pale)">
+      <p style="font-family:var(--font-serif);font-size:11px;color:var(--text-secondary);line-height:1.6;font-style:italic">
+        Scoring model based on NACTO Curb Appeal, FHWA freight research, and urban freight literature.
+        CVLZ locations are modeled; framework is SDOT live-data ready.
+      </p>
+    </div>
+
+  </aside><!-- end sidebar -->
+
+  <!-- ── Map content ── -->
+  <div class="map-content">
+
+    <!-- Layer toggle bar -->
+    <div class="layer-bar">
+      <span class="layer-bar-label">Map Layer:</span>
+      <button class="layer-btn active" id="lb-tier" onclick="setLayer('tier')">Effectiveness Tier</button>
+      <button class="layer-btn" id="lb-demand" onclick="setLayer('demand')">Commercial Demand</button>
+      <button class="layer-btn" id="lb-network" onclick="setLayer('network')">Network Importance</button>
+      <button class="layer-btn" id="lb-turnover" onclick="setLayer('turnover')">Turnover Efficiency</button>
+      <button class="layer-btn" id="lb-temporal" onclick="setLayer('temporal')">Temporal Coverage</button>
+      <div class="layer-sep"></div>
+      <button class="layer-btn buf-btn" id="lb-buffer" onclick="toggleBuffers()">100m Demand Buffers</button>
+      <button class="layer-btn buf-btn" id="lb-heat" onclick="toggleHeat()">Demand Heatmap</button>
+    </div>
+
+    <!-- Map -->
+    <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
+      <div id="map"></div>
+      <!-- Legend overlay -->
+      <div id="map-legend">
+        <div id="map-legend-title">Effectiveness Tier</div>
+        <div id="map-legend-body"></div>
+      </div>
+      <div class="heat-notice" id="heat-notice">Demand Heatmap Active</div>
+    </div>
+
+  </div><!-- end map content -->
+</div><!-- end body -->
+
+<!-- ═══ BOTTOM PANEL ═══ -->
+<div class="bottom-panel">
+  <div class="bp-tab-bar">
+    <button class="bp-tab active" id="tab-charts" onclick="switchTab('charts')">Charts</button>
+    <button class="bp-tab" id="tab-table" onclick="switchTab('table')">Table</button>
+  </div>
+
+  <!-- Charts panel -->
+  <div class="bp-panel active" id="panel-charts">
+    <div class="bp-charts">
+      <div class="bp-chart-card">
+        <div class="bp-chart-title">Effectiveness Score Distribution</div>
+        <div class="bp-chart-canvas"><canvas id="chart-hist"></canvas></div>
+      </div>
+      <div class="bp-chart-card">
+        <div class="bp-chart-title">Avg Score by Urban Center</div>
+        <div class="bp-chart-canvas"><canvas id="chart-uc"></canvas></div>
+      </div>
+      <div class="bp-chart-card">
+        <div class="bp-chart-title">Commercial Demand vs. Effectiveness</div>
+        <div class="bp-chart-canvas"><canvas id="chart-scatter"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table panel -->
+  <div class="bp-panel" id="panel-table">
+    <div class="bp-table-wrap">
+      <table class="data-table" id="main-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('id')">CVLZ ID</th>
+            <th onclick="sortTable('name')">Location</th>
+            <th onclick="sortTable('uc')">Urban Center</th>
+            <th onclick="sortTable('stype')">Street Type</th>
+            <th onclick="sortTable('tlim')">Time Limit</th>
+            <th onclick="sortTable('demand')">Demand (/40)</th>
+            <th onclick="sortTable('network')">Network (/25)</th>
+            <th onclick="sortTable('turnover')">Turnover (/20)</th>
+            <th onclick="sortTable('temporal')">Temporal (/15)</th>
+            <th onclick="sortTable('score')">Total Score</th>
+            <th onclick="sortTable('tier')">Tier</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DATA + JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ──────────────────── EMBEDDED DATA ──────────────────── */
+const CVLZ_DATA = [{"id":"CVLZ-0001","name":"3rd Ave Block 1","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":102,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":37.3,"network":22.0,"turnover":15.5,"temporal":14.9,"score":89.6,"tier":"HIGH","lat":47.617088,"lon":-122.333861},{"id":"CVLZ-0002","name":"3rd Ave Block 2","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"mixed","len":49,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":36.1,"network":21.3,"turnover":19.2,"temporal":14.9,"score":91.5,"tier":"HIGH","lat":47.612599,"lon":-122.334288},{"id":"CVLZ-0003","name":"3rd Ave Block 3","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":110,"tlim":30,"hrs":"6:00-19:00","permit":true,"demand":40.0,"network":23.0,"turnover":18.6,"temporal":15.0,"score":96.6,"tier":"HIGH","lat":47.610816,"lon":-122.334296},{"id":"CVLZ-0004","name":"3rd Ave Block 4","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":81,"tlim":30,"hrs":"7:00-20:00","permit":false,"demand":40.0,"network":20.3,"turnover":16.6,"temporal":14.5,"score":91.4,"tier":"HIGH","lat":47.617514,"lon":-122.33416},{"id":"CVLZ-0005","name":"3rd Ave Block 5","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":92,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":32.3,"network":24.2,"turnover":18.2,"temporal":12.1,"score":86.8,"tier":"HIGH","lat":47.608135,"lon":-122.333784},{"id":"CVLZ-0006","name":"3rd Ave Block 6","street":"3rd Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":103,"tlim":45,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":20.2,"turnover":12.8,"temporal":14.5,"score":87.5,"tier":"HIGH","lat":47.614455,"lon":-122.334117},{"id":"CVLZ-0007","name":"4th Ave Block 1","street":"4th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":21,"tlim":20,"hrs":"7:00-19:00","permit":true,"demand":38.0,"network":23.1,"turnover":18.4,"temporal":13.6,"score":93.1,"tier":"HIGH","lat":47.616322,"lon":-122.329145},{"id":"CVLZ-0008","name":"4th Ave Block 2","street":"4th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":119,"tlim":45,"hrs":"6:00-19:00","permit":false,"demand":40.0,"network":22.6,"turnover":10.0,"temporal":13.5,"score":86.2,"tier":"HIGH","lat":47.615082,"lon":-122.32903},{"id":"CVLZ-0009","name":"4th Ave Block 3","street":"4th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":45,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":34.9,"network":25.0,"turnover":19.8,"temporal":13.4,"score":93.1,"tier":"HIGH","lat":47.606691,"lon":-122.329137},{"id":"CVLZ-0010","name":"4th Ave Block 4","street":"4th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"mixed","len":107,"tlim":15,"hrs":"7:00-20:00","permit":false,"demand":34.4,"network":23.7,"turnover":18.1,"temporal":14.7,"score":90.9,"tier":"HIGH","lat":47.614341,"lon":-122.329255},{"id":"CVLZ-0011","name":"4th Ave Block 5","street":"4th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":24,"tlim":20,"hrs":"6:00-19:00","permit":true,"demand":38.6,"network":22.3,"turnover":18.8,"temporal":12.8,"score":92.5,"tier":"HIGH","lat":47.612577,"lon":-122.328863},{"id":"CVLZ-0012","name":"5th Ave Block 1","street":"5th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":42,"tlim":60,"hrs":"6:00-19:00","permit":false,"demand":40.0,"network":20.2,"turnover":7.4,"temporal":12.1,"score":79.7,"tier":"HIGH","lat":47.611031,"lon":-122.324101},{"id":"CVLZ-0013","name":"5th Ave Block 2","street":"5th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":20,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":33.3,"network":24.7,"turnover":6.9,"temporal":12.8,"score":77.7,"tier":"HIGH","lat":47.608236,"lon":-122.324228},{"id":"CVLZ-0014","name":"5th Ave Block 3","street":"5th Ave","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":61,"tlim":45,"hrs":"6:00-20:00","permit":true,"demand":39.0,"network":20.0,"turnover":11.8,"temporal":12.1,"score":83.0,"tier":"HIGH","lat":47.608635,"lon":-122.323986},{"id":"CVLZ-0015","name":"Pike Place Block 1","street":"Pike Place","uc":"Downtown Seattle","stype":"arterial","bmix":"mixed","len":42,"tlim":60,"hrs":"6:00-20:00","permit":true,"demand":33.6,"network":24.8,"turnover":4.4,"temporal":14.7,"score":77.5,"tier":"HIGH","lat":47.6085,"lon":-122.33848},{"id":"CVLZ-0016","name":"Pike Place Block 2","street":"Pike Place","uc":"Downtown Seattle","stype":"arterial","bmix":"office_heavy","len":47,"tlim":20,"hrs":"7:00-18:00","permit":true,"demand":39.9,"network":20.3,"turnover":19.8,"temporal":13.5,"score":93.5,"tier":"HIGH","lat":47.6085,"lon":-122.333398},{"id":"CVLZ-0017","name":"Pike Place Block 3","street":"Pike Place","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":103,"tlim":30,"hrs":"7:00-19:00","permit":true,"demand":40.0,"network":22.9,"turnover":17.6,"temporal":13.6,"score":94.1,"tier":"HIGH","lat":47.6085,"lon":-122.340182},{"id":"CVLZ-0018","name":"Pike St Block 1","street":"Pike St","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":81,"tlim":15,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":23.7,"turnover":19.0,"temporal":14.6,"score":97.3,"tier":"HIGH","lat":47.61,"lon":-122.328648},{"id":"CVLZ-0019","name":"Pike St Block 2","street":"Pike St","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":56,"tlim":15,"hrs":"6:00-19:00","permit":false,"demand":38.9,"network":20.8,"turnover":18.3,"temporal":13.0,"score":91.1,"tier":"HIGH","lat":47.61,"lon":-122.336806},{"id":"CVLZ-0020","name":"Pike St Block 3","street":"Pike St","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":71,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":38.9,"network":24.7,"turnover":18.2,"temporal":14.1,"score":95.8,"tier":"HIGH","lat":47.61,"lon":-122.311648},{"id":"CVLZ-0021","name":"Pine St Block 1","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":75,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":40.0,"network":24.4,"turnover":19.9,"temporal":13.4,"score":97.7,"tier":"HIGH","lat":47.613,"lon":-122.330204},{"id":"CVLZ-0022","name":"Pine St Block 2","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":20,"tlim":30,"hrs":"7:00-19:00","permit":false,"demand":40.0,"network":20.0,"turnover":18.3,"temporal":12.7,"score":91.0,"tier":"HIGH","lat":47.613,"lon":-122.326182},{"id":"CVLZ-0023","name":"Pine St Block 3","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"retail_heavy","len":74,"tlim":30,"hrs":"7:00-20:00","permit":true,"demand":40.0,"network":20.0,"turnover":17.2,"temporal":14.3,"score":91.5,"tier":"HIGH","lat":47.613,"lon":-122.324878},{"id":"CVLZ-0024","name":"Pine St Block 4","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"mixed","len":105,"tlim":30,"hrs":"6:00-18:00","permit":true,"demand":31.0,"network":21.0,"turnover":15.3,"temporal":13.0,"score":80.2,"tier":"HIGH","lat":47.613,"lon":-122.315333},{"id":"CVLZ-0025","name":"Pine St Block 5","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"mixed","len":78,"tlim":45,"hrs":"6:00-19:00","permit":false,"demand":33.8,"network":20.6,"turnover":10.5,"temporal":12.0,"score":76.9,"tier":"HIGH","lat":47.613,"lon":-122.323161},{"id":"CVLZ-0026","name":"Pine St Block 6","street":"Pine St","uc":"Downtown Seattle","stype":"arterial","bmix":"food_heavy","len":52,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":20.6,"turnover":18.6,"temporal":12.1,"score":91.3,"tier":"HIGH","lat":47.613,"lon":-122.330798},{"id":"CVLZ-0027","name":"Columbia St Block 1","street":"Columbia St","uc":"Downtown Seattle","stype":"collector","bmix":"mixed","len":118,"tlim":45,"hrs":"7:00-19:00","permit":false,"demand":32.6,"network":16.2,"turnover":10.6,"temporal":12.5,"score":71.9,"tier":"MEDIUM","lat":47.605,"lon":-122.333362},{"id":"CVLZ-0028","name":"Columbia St Block 2","street":"Columbia St","uc":"Downtown Seattle","stype":"collector","bmix":"mixed","len":31,"tlim":60,"hrs":"6:00-20:00","permit":true,"demand":35.7,"network":15.9,"turnover":4.7,"temporal":14.3,"score":70.6,"tier":"MEDIUM","lat":47.605,"lon":-122.325294},{"id":"CVLZ-0029","name":"Columbia St Block 3","street":"Columbia St","uc":"Downtown Seattle","stype":"collector","bmix":"office_heavy","len":39,"tlim":15,"hrs":"7:00-20:00","permit":false,"demand":39.5,"network":12.8,"turnover":19.5,"temporal":14.1,"score":86.0,"tier":"HIGH","lat":47.605,"lon":-122.330023},{"id":"CVLZ-0030","name":"Madison St Block 1","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"food_heavy","len":108,"tlim":30,"hrs":"6:00-18:00","permit":true,"demand":40.0,"network":12.3,"turnover":15.3,"temporal":14.6,"score":82.1,"tier":"HIGH","lat":47.607,"lon":-122.317067},{"id":"CVLZ-0031","name":"Madison St Block 2","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"retail_heavy","len":80,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":15.4,"turnover":18.9,"temporal":13.9,"score":88.2,"tier":"HIGH","lat":47.607,"lon":-122.329596},{"id":"CVLZ-0032","name":"Madison St Block 3","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"retail_heavy","len":27,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":40.0,"network":13.9,"turnover":15.3,"temporal":14.5,"score":83.6,"tier":"HIGH","lat":47.607,"lon":-122.325821},{"id":"CVLZ-0033","name":"Madison St Block 4","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"food_heavy","len":49,"tlim":60,"hrs":"6:00-19:00","permit":false,"demand":40.0,"network":16.1,"turnover":5.0,"temporal":12.0,"score":73.1,"tier":"MEDIUM","lat":47.607,"lon":-122.325233},{"id":"CVLZ-0034","name":"Madison St Block 5","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"retail_heavy","len":83,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":37.9,"network":14.3,"turnover":19.9,"temporal":12.3,"score":84.4,"tier":"HIGH","lat":47.607,"lon":-122.326968},{"id":"CVLZ-0035","name":"Madison St Block 6","street":"Madison St","uc":"Downtown Seattle","stype":"collector","bmix":"food_heavy","len":63,"tlim":45,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":14.6,"turnover":12.3,"temporal":12.9,"score":79.8,"tier":"HIGH","lat":47.607,"lon":-122.323827},{"id":"CVLZ-0036","name":"Cherry Ln Block 1","street":"Cherry Ln","uc":"Downtown Seattle","stype":"local","bmix":"food_heavy","len":65,"tlim":60,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":8.9,"turnover":4.9,"temporal":12.4,"score":66.2,"tier":"MEDIUM","lat":47.610743,"lon":-122.319728},{"id":"CVLZ-0037","name":"Cherry Ln Block 2","street":"Cherry Ln","uc":"Downtown Seattle","stype":"local","bmix":"food_heavy","len":52,"tlim":30,"hrs":"7:00-19:00","permit":false,"demand":40.0,"network":9.8,"turnover":15.1,"temporal":14.2,"score":79.1,"tier":"HIGH","lat":47.608726,"lon":-122.320117},{"id":"CVLZ-0038","name":"Cherry Ln Block 3","street":"Cherry Ln","uc":"Downtown Seattle","stype":"local","bmix":"retail_heavy","len":43,"tlim":20,"hrs":"7:00-20:00","permit":false,"demand":40.0,"network":9.3,"turnover":19.9,"temporal":14.3,"score":83.5,"tier":"HIGH","lat":47.611308,"lon":-122.319882},{"id":"CVLZ-0039","name":"Cherry Ln Block 4","street":"Cherry Ln","uc":"Downtown Seattle","stype":"local","bmix":"mixed","len":36,"tlim":15,"hrs":"6:00-20:00","permit":false,"demand":32.7,"network":6.6,"turnover":18.6,"temporal":14.2,"score":72.1,"tier":"MEDIUM","lat":47.60892,"lon":-122.319989},{"id":"CVLZ-0040","name":"Cherry Ln Block 5","street":"Cherry Ln","uc":"Downtown Seattle","stype":"local","bmix":"retail_heavy","len":69,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":6.0,"turnover":19.7,"temporal":14.1,"score":79.9,"tier":"HIGH","lat":47.610158,"lon":-122.320122},{"id":"CVLZ-0041","name":"Terry Ave N Block 1","street":"Terry Ave N","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":35,"tlim":45,"hrs":"6:00-20:00","permit":true,"demand":40.0,"network":22.4,"turnover":11.2,"temporal":12.5,"score":86.0,"tier":"HIGH","lat":47.628279,"lon":-122.342183},{"id":"CVLZ-0042","name":"Terry Ave N Block 2","street":"Terry Ave N","uc":"South Lake Union","stype":"arterial","bmix":"office_heavy","len":70,"tlim":15,"hrs":"7:00-20:00","permit":false,"demand":32.0,"network":20.5,"turnover":18.3,"temporal":13.4,"score":84.2,"tier":"HIGH","lat":47.627789,"lon":-122.342037},{"id":"CVLZ-0043","name":"Terry Ave N Block 3","street":"Terry Ave N","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":61,"tlim":30,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":20.1,"turnover":18.2,"temporal":12.9,"score":91.2,"tier":"HIGH","lat":47.630389,"lon":-122.341784},{"id":"CVLZ-0044","name":"Mercer St Block 1","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"retail_heavy","len":25,"tlim":60,"hrs":"7:00-19:00","permit":false,"demand":40.0,"network":24.8,"turnover":4.7,"temporal":13.4,"score":83.0,"tier":"HIGH","lat":47.628,"lon":-122.342833},{"id":"CVLZ-0045","name":"Mercer St Block 2","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"mixed","len":49,"tlim":30,"hrs":"6:00-20:00","permit":false,"demand":28.5,"network":23.0,"turnover":17.4,"temporal":12.7,"score":81.7,"tier":"HIGH","lat":47.628,"lon":-122.336391},{"id":"CVLZ-0046","name":"Mercer St Block 3","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":81,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":21.1,"turnover":18.3,"temporal":14.0,"score":93.4,"tier":"HIGH","lat":47.628,"lon":-122.334757},{"id":"CVLZ-0047","name":"Mercer St Block 4","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":67,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":23.0,"turnover":18.9,"temporal":15.0,"score":96.8,"tier":"HIGH","lat":47.628,"lon":-122.331561},{"id":"CVLZ-0048","name":"Mercer St Block 5","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"retail_heavy","len":41,"tlim":60,"hrs":"6:00-20:00","permit":true,"demand":37.8,"network":22.3,"turnover":6.7,"temporal":13.2,"score":80.0,"tier":"HIGH","lat":47.628,"lon":-122.33067},{"id":"CVLZ-0049","name":"Mercer St Block 6","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":97,"tlim":45,"hrs":"6:00-20:00","permit":true,"demand":40.0,"network":23.6,"turnover":11.6,"temporal":14.3,"score":89.5,"tier":"HIGH","lat":47.628,"lon":-122.341438},{"id":"CVLZ-0050","name":"Mercer St Block 7","street":"Mercer St","uc":"South Lake Union","stype":"arterial","bmix":"retail_heavy","len":109,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":24.5,"turnover":19.4,"temporal":14.2,"score":98.2,"tier":"HIGH","lat":47.628,"lon":-122.33248},{"id":"CVLZ-0051","name":"Valley St Block 1","street":"Valley St","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":88,"tlim":45,"hrs":"7:00-20:00","permit":true,"demand":40.0,"network":20.5,"turnover":11.3,"temporal":12.1,"score":83.9,"tier":"HIGH","lat":47.625,"lon":-122.339546},{"id":"CVLZ-0052","name":"Valley St Block 2","street":"Valley St","uc":"South Lake Union","stype":"arterial","bmix":"retail_heavy","len":23,"tlim":20,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":21.1,"turnover":18.7,"temporal":14.3,"score":94.1,"tier":"HIGH","lat":47.625,"lon":-122.331198},{"id":"CVLZ-0053","name":"Valley St Block 3","street":"Valley St","uc":"South Lake Union","stype":"arterial","bmix":"food_heavy","len":80,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":40.0,"network":20.4,"turnover":17.1,"temporal":14.6,"score":92.1,"tier":"HIGH","lat":47.625,"lon":-122.335767},{"id":"CVLZ-0054","name":"Eastlake Ave E Block 1","street":"Eastlake Ave E","uc":"South Lake Union","stype":"collector","bmix":"food_heavy","len":32,"tlim":45,"hrs":"6:00-19:00","permit":true,"demand":40.0,"network":16.1,"turnover":10.4,"temporal":13.0,"score":79.5,"tier":"HIGH","lat":47.630728,"lon":-122.329757},{"id":"CVLZ-0055","name":"Eastlake Ave E Block 2","street":"Eastlake Ave E","uc":"South Lake Union","stype":"collector","bmix":"food_heavy","len":27,"tlim":60,"hrs":"7:00-19:00","permit":true,"demand":40.0,"network":13.0,"turnover":6.8,"temporal":14.5,"score":74.2,"tier":"MEDIUM","lat":47.624661,"lon":-122.32989},{"id":"CVLZ-0056","name":"Eastlake Ave E Block 3","street":"Eastlake Ave E","uc":"South Lake Union","stype":"collector","bmix":"food_heavy","len":94,"tlim":60,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":15.4,"turnover":7.8,"temporal":12.4,"score":75.5,"tier":"HIGH","lat":47.629701,"lon":-122.330131},{"id":"CVLZ-0057","name":"Harrison St Block 1","street":"Harrison St","uc":"South Lake Union","stype":"collector","bmix":"retail_heavy","len":118,"tlim":15,"hrs":"6:00-19:00","permit":true,"demand":40.0,"network":15.0,"turnover":19.2,"temporal":13.8,"score":88.0,"tier":"HIGH","lat":47.623,"lon":-122.336826},{"id":"CVLZ-0058","name":"Harrison St Block 2","street":"Harrison St","uc":"South Lake Union","stype":"collector","bmix":"retail_heavy","len":31,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":39.6,"network":16.7,"turnover":19.9,"temporal":13.9,"score":90.0,"tier":"HIGH","lat":47.623,"lon":-122.336072},{"id":"CVLZ-0059","name":"Harrison St Block 3","street":"Harrison St","uc":"South Lake Union","stype":"collector","bmix":"retail_heavy","len":103,"tlim":15,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":15.1,"turnover":19.0,"temporal":14.0,"score":88.0,"tier":"HIGH","lat":47.623,"lon":-122.3415},{"id":"CVLZ-0060","name":"Denny Way Block 1","street":"Denny Way","uc":"South Lake Union","stype":"local","bmix":"office_heavy","len":28,"tlim":45,"hrs":"7:00-20:00","permit":false,"demand":35.5,"network":8.0,"turnover":12.1,"temporal":13.4,"score":69.1,"tier":"MEDIUM","lat":47.62,"lon":-122.345137},{"id":"CVLZ-0061","name":"Denny Way Block 2","street":"Denny Way","uc":"South Lake Union","stype":"local","bmix":"retail_heavy","len":118,"tlim":45,"hrs":"6:00-20:00","permit":true,"demand":36.5,"network":5.8,"turnover":10.8,"temporal":14.2,"score":67.2,"tier":"MEDIUM","lat":47.62,"lon":-122.339613},{"id":"CVLZ-0062","name":"Denny Way Block 3","street":"Denny Way","uc":"South Lake Union","stype":"local","bmix":"food_heavy","len":72,"tlim":20,"hrs":"7:00-20:00","permit":false,"demand":40.0,"network":8.3,"turnover":19.0,"temporal":13.8,"score":81.1,"tier":"HIGH","lat":47.62,"lon":-122.335423},{"id":"CVLZ-0063","name":"Broadway E Block 1","street":"Broadway E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":37,"tlim":45,"hrs":"6:00-19:00","permit":false,"demand":33.9,"network":22.4,"turnover":12.0,"temporal":14.6,"score":82.9,"tier":"HIGH","lat":47.622506,"lon":-122.319767},{"id":"CVLZ-0064","name":"Broadway E Block 2","street":"Broadway E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":59,"tlim":20,"hrs":"6:00-19:00","permit":false,"demand":35.2,"network":20.2,"turnover":18.3,"temporal":12.1,"score":85.8,"tier":"HIGH","lat":47.629737,"lon":-122.319797},{"id":"CVLZ-0065","name":"Broadway E Block 3","street":"Broadway E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"food_heavy","len":27,"tlim":60,"hrs":"6:00-19:00","permit":false,"demand":40.0,"network":21.7,"turnover":6.2,"temporal":13.5,"score":81.3,"tier":"HIGH","lat":47.617492,"lon":-122.319992},{"id":"CVLZ-0066","name":"Broadway E Block 4","street":"Broadway E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"office_heavy","len":89,"tlim":45,"hrs":"6:00-20:00","permit":false,"demand":25.8,"network":22.0,"turnover":9.9,"temporal":13.3,"score":71.0,"tier":"MEDIUM","lat":47.631103,"lon":-122.319708},{"id":"CVLZ-0067","name":"Pine St E Block 1","street":"Pine St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":64,"tlim":60,"hrs":"7:00-19:00","permit":true,"demand":32.4,"network":24.2,"turnover":4.7,"temporal":14.9,"score":76.2,"tier":"HIGH","lat":47.62,"lon":-122.320386},{"id":"CVLZ-0068","name":"Pine St E Block 2","street":"Pine St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":20,"tlim":30,"hrs":"6:00-19:00","permit":false,"demand":35.0,"network":24.2,"turnover":17.5,"temporal":14.2,"score":90.9,"tier":"HIGH","lat":47.62,"lon":-122.324021},{"id":"CVLZ-0069","name":"Pine St E Block 3","street":"Pine St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":25,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":39.2,"network":22.5,"turnover":19.1,"temporal":13.5,"score":94.4,"tier":"HIGH","lat":47.62,"lon":-122.314352},{"id":"CVLZ-0070","name":"Pine St E Block 4","street":"Pine St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":94,"tlim":45,"hrs":"6:00-20:00","permit":false,"demand":37.1,"network":20.1,"turnover":10.6,"temporal":13.8,"score":81.6,"tier":"HIGH","lat":47.62,"lon":-122.3256},{"id":"CVLZ-0071","name":"Pine St E Block 5","street":"Pine St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"food_heavy","len":34,"tlim":15,"hrs":"6:00-19:00","permit":false,"demand":40.0,"network":24.0,"turnover":19.3,"temporal":15.0,"score":98.3,"tier":"HIGH","lat":47.62,"lon":-122.325164},{"id":"CVLZ-0072","name":"Pike St E Block 1","street":"Pike St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"food_heavy","len":95,"tlim":45,"hrs":"6:00-19:00","permit":true,"demand":40.0,"network":21.8,"turnover":10.5,"temporal":13.4,"score":85.7,"tier":"HIGH","lat":47.617,"lon":-122.302013},{"id":"CVLZ-0073","name":"Pike St E Block 2","street":"Pike St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"retail_heavy","len":111,"tlim":60,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":21.2,"turnover":7.1,"temporal":13.2,"score":81.5,"tier":"HIGH","lat":47.617,"lon":-122.314568},{"id":"CVLZ-0074","name":"Pike St E Block 3","street":"Pike St E","uc":"Capitol Hill / First Hill","stype":"arterial","bmix":"office_heavy","len":111,"tlim":60,"hrs":"6:00-19:00","permit":true,"demand":31.0,"network":23.2,"turnover":5.5,"temporal":13.5,"score":73.2,"tier":"MEDIUM","lat":47.617,"lon":-122.31264},{"id":"CVLZ-0075","name":"Belmont Ave E Block 1","street":"Belmont Ave E","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"mixed","len":29,"tlim":20,"hrs":"6:00-18:00","permit":true,"demand":27.7,"network":12.3,"turnover":18.9,"temporal":12.3,"score":71.2,"tier":"MEDIUM","lat":47.624166,"lon":-122.314951},{"id":"CVLZ-0077","name":"Belmont Ave E Block 3","street":"Belmont Ave E","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"office_heavy","len":117,"tlim":15,"hrs":"6:00-20:00","permit":true,"demand":29.1,"network":15.0,"turnover":19.2,"temporal":14.0,"score":77.2,"tier":"HIGH","lat":47.629699,"lon":-122.314795},{"id":"CVLZ-0078","name":"Belmont Ave E Block 4","street":"Belmont Ave E","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"office_heavy","len":114,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":26.0,"network":15.3,"turnover":5.2,"temporal":13.2,"score":59.7,"tier":"MEDIUM","lat":47.620564,"lon":-122.314781},{"id":"CVLZ-0079","name":"Olive St Block 1","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"retail_heavy","len":104,"tlim":15,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":12.0,"turnover":19.2,"temporal":13.8,"score":85.0,"tier":"HIGH","lat":47.615,"lon":-122.305871},{"id":"CVLZ-0080","name":"Olive St Block 2","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"office_heavy","len":51,"tlim":20,"hrs":"7:00-20:00","permit":true,"demand":29.0,"network":13.2,"turnover":18.5,"temporal":14.7,"score":75.3,"tier":"HIGH","lat":47.615,"lon":-122.308827},{"id":"CVLZ-0081","name":"Olive St Block 3","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"office_heavy","len":69,"tlim":45,"hrs":"6:00-19:00","permit":false,"demand":29.4,"network":13.7,"turnover":10.8,"temporal":14.0,"score":67.9,"tier":"MEDIUM","lat":47.615,"lon":-122.307213},{"id":"CVLZ-0082","name":"Olive St Block 4","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"retail_heavy","len":66,"tlim":60,"hrs":"6:00-19:00","permit":false,"demand":31.7,"network":14.2,"turnover":6.4,"temporal":14.8,"score":67.2,"tier":"MEDIUM","lat":47.615,"lon":-122.31988},{"id":"CVLZ-0083","name":"Olive St Block 5","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"food_heavy","len":57,"tlim":20,"hrs":"7:00-19:00","permit":false,"demand":40.0,"network":13.8,"turnover":18.8,"temporal":13.8,"score":86.4,"tier":"HIGH","lat":47.615,"lon":-122.317533},{"id":"CVLZ-0084","name":"Olive St Block 6","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"food_heavy","len":57,"tlim":15,"hrs":"7:00-20:00","permit":false,"demand":40.0,"network":14.7,"turnover":19.6,"temporal":14.1,"score":88.3,"tier":"HIGH","lat":47.615,"lon":-122.312133},{"id":"CVLZ-0085","name":"Olive St Block 7","street":"Olive St","uc":"Capitol Hill / First Hill","stype":"collector","bmix":"mixed","len":23,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":28.0,"network":16.3,"turnover":19.1,"temporal":13.6,"score":77.0,"tier":"HIGH","lat":47.615,"lon":-122.308097},{"id":"CVLZ-0086","name":"Harvard Ave E Block 1","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"retail_heavy","len":85,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":30.4,"network":9.9,"turnover":4.5,"temporal":12.7,"score":57.5,"tier":"MEDIUM","lat":47.618662,"lon":-122.310272},{"id":"CVLZ-0087","name":"Harvard Ave E Block 2","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"retail_heavy","len":99,"tlim":30,"hrs":"7:00-18:00","permit":false,"demand":30.6,"network":8.2,"turnover":15.9,"temporal":12.5,"score":67.3,"tier":"MEDIUM","lat":47.621416,"lon":-122.309978},{"id":"CVLZ-0088","name":"Harvard Ave E Block 3","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"food_heavy","len":70,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":38.8,"network":5.5,"turnover":17.3,"temporal":14.1,"score":75.7,"tier":"HIGH","lat":47.62274,"lon":-122.309899},{"id":"CVLZ-0089","name":"Harvard Ave E Block 4","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"retail_heavy","len":24,"tlim":15,"hrs":"7:00-19:00","permit":false,"demand":34.8,"network":7.4,"turnover":19.4,"temporal":12.1,"score":73.6,"tier":"MEDIUM","lat":47.621476,"lon":-122.310281},{"id":"CVLZ-0090","name":"Harvard Ave E Block 5","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"food_heavy","len":45,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":40.0,"network":9.9,"turnover":19.2,"temporal":12.8,"score":81.8,"tier":"HIGH","lat":47.619287,"lon":-122.310102},{"id":"CVLZ-0091","name":"Harvard Ave E Block 6","street":"Harvard Ave E","uc":"Capitol Hill / First Hill","stype":"local","bmix":"retail_heavy","len":100,"tlim":20,"hrs":"7:00-18:00","permit":true,"demand":36.3,"network":6.7,"turnover":19.1,"temporal":12.4,"score":74.4,"tier":"MEDIUM","lat":47.623117,"lon":-122.310206},{"id":"CVLZ-0092","name":"University Way NE Block 1","street":"University Way NE","uc":"University District","stype":"arterial","bmix":"retail_heavy","len":105,"tlim":20,"hrs":"7:00-20:00","permit":false,"demand":31.6,"network":20.7,"turnover":19.9,"temporal":14.2,"score":86.4,"tier":"HIGH","lat":47.65869,"lon":-122.305174},{"id":"CVLZ-0093","name":"University Way NE Block 2","street":"University Way NE","uc":"University District","stype":"arterial","bmix":"food_heavy","len":26,"tlim":30,"hrs":"6:00-20:00","permit":false,"demand":39.9,"network":20.9,"turnover":17.9,"temporal":12.5,"score":91.3,"tier":"HIGH","lat":47.66941,"lon":-122.305263},{"id":"CVLZ-0094","name":"University Way NE Block 3","street":"University Way NE","uc":"University District","stype":"arterial","bmix":"retail_heavy","len":118,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":32.8,"network":24.8,"turnover":16.0,"temporal":14.0,"score":87.6,"tier":"HIGH","lat":47.665642,"lon":-122.305236},{"id":"CVLZ-0095","name":"University Way NE Block 4","street":"University Way NE","uc":"University District","stype":"arterial","bmix":"office_heavy","len":105,"tlim":20,"hrs":"7:00-18:00","permit":false,"demand":34.8,"network":21.9,"turnover":18.0,"temporal":12.7,"score":87.4,"tier":"HIGH","lat":47.658646,"lon":-122.304962},{"id":"CVLZ-0096","name":"University Way NE Block 5","street":"University Way NE","uc":"University District","stype":"arterial","bmix":"office_heavy","len":37,"tlim":45,"hrs":"6:00-19:00","permit":false,"demand":33.3,"network":24.3,"turnover":12.1,"temporal":12.3,"score":82.0,"tier":"HIGH","lat":47.666872,"lon":-122.304893},{"id":"CVLZ-0097","name":"45th St NE Block 1","street":"45th St NE","uc":"University District","stype":"arterial","bmix":"food_heavy","len":71,"tlim":20,"hrs":"7:00-19:00","permit":true,"demand":40.0,"network":24.6,"turnover":19.2,"temporal":14.8,"score":98.6,"tier":"HIGH","lat":47.665,"lon":-122.300526},{"id":"CVLZ-0098","name":"45th St NE Block 2","street":"45th St NE","uc":"University District","stype":"arterial","bmix":"mixed","len":72,"tlim":60,"hrs":"7:00-19:00","permit":true,"demand":31.6,"network":23.3,"turnover":6.3,"temporal":13.0,"score":74.3,"tier":"MEDIUM","lat":47.665,"lon":-122.302144},{"id":"CVLZ-0099","name":"45th St NE Block 3","street":"45th St NE","uc":"University District","stype":"arterial","bmix":"food_heavy","len":114,"tlim":15,"hrs":"6:00-20:00","permit":false,"demand":39.9,"network":23.0,"turnover":18.6,"temporal":14.6,"score":96.1,"tier":"HIGH","lat":47.665,"lon":-122.310332},{"id":"CVLZ-0100","name":"Roosevelt Way NE Block 1","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"retail_heavy","len":111,"tlim":30,"hrs":"7:00-20:00","permit":false,"demand":40.0,"network":23.8,"turnover":15.4,"temporal":12.9,"score":92.0,"tier":"HIGH","lat":47.674648,"lon":-122.320233},{"id":"CVLZ-0101","name":"Roosevelt Way NE Block 2","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"office_heavy","len":76,"tlim":20,"hrs":"6:00-20:00","permit":false,"demand":26.1,"network":23.3,"turnover":19.5,"temporal":14.8,"score":83.7,"tier":"HIGH","lat":47.660158,"lon":-122.320197},{"id":"CVLZ-0102","name":"Roosevelt Way NE Block 3","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"food_heavy","len":87,"tlim":30,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":24.5,"turnover":18.5,"temporal":13.0,"score":96.0,"tier":"HIGH","lat":47.6606,"lon":-122.319838},{"id":"CVLZ-0103","name":"Roosevelt Way NE Block 4","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"office_heavy","len":57,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":33.7,"network":21.9,"turnover":5.2,"temporal":13.9,"score":74.7,"tier":"MEDIUM","lat":47.665597,"lon":-122.319876},{"id":"CVLZ-0104","name":"Roosevelt Way NE Block 5","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"retail_heavy","len":29,"tlim":60,"hrs":"6:00-19:00","permit":false,"demand":33.9,"network":23.2,"turnover":6.4,"temporal":13.7,"score":77.2,"tier":"HIGH","lat":47.661413,"lon":-122.319944},{"id":"CVLZ-0106","name":"Roosevelt Way NE Block 7","street":"Roosevelt Way NE","uc":"University District","stype":"arterial","bmix":"food_heavy","len":88,"tlim":45,"hrs":"7:00-19:00","permit":true,"demand":40.0,"network":22.7,"turnover":11.4,"temporal":13.6,"score":87.8,"tier":"HIGH","lat":47.667122,"lon":-122.319823},{"id":"CVLZ-0107","name":"NE 50th St Block 1","street":"NE 50th St","uc":"University District","stype":"collector","bmix":"food_heavy","len":59,"tlim":45,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":12.1,"turnover":11.3,"temporal":12.5,"score":75.9,"tier":"HIGH","lat":47.67,"lon":-122.296363},{"id":"CVLZ-0108","name":"NE 50th St Block 2","street":"NE 50th St","uc":"University District","stype":"collector","bmix":"food_heavy","len":104,"tlim":60,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":15.8,"turnover":6.0,"temporal":13.6,"score":75.4,"tier":"HIGH","lat":47.67,"lon":-122.299069},{"id":"CVLZ-0109","name":"NE 50th St Block 3","street":"NE 50th St","uc":"University District","stype":"collector","bmix":"mixed","len":108,"tlim":20,"hrs":"7:00-20:00","permit":false,"demand":32.8,"network":16.2,"turnover":19.8,"temporal":14.4,"score":83.3,"tier":"HIGH","lat":47.67,"lon":-122.304146},{"id":"CVLZ-0110","name":"NE 50th St Block 4","street":"NE 50th St","uc":"University District","stype":"collector","bmix":"retail_heavy","len":82,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":31.3,"network":12.7,"turnover":19.1,"temporal":12.7,"score":75.8,"tier":"HIGH","lat":47.67,"lon":-122.296832},{"id":"CVLZ-0111","name":"NE 50th St Block 5","street":"NE 50th St","uc":"University District","stype":"collector","bmix":"mixed","len":70,"tlim":30,"hrs":"7:00-19:00","permit":false,"demand":28.3,"network":14.0,"turnover":17.2,"temporal":14.2,"score":73.7,"tier":"MEDIUM","lat":47.67,"lon":-122.30668},{"id":"CVLZ-0112","name":"Brooklyn Ave NE Block 1","street":"Brooklyn Ave NE","uc":"University District","stype":"collector","bmix":"office_heavy","len":48,"tlim":15,"hrs":"7:00-19:00","permit":false,"demand":32.2,"network":14.6,"turnover":19.6,"temporal":13.3,"score":79.7,"tier":"HIGH","lat":47.663693,"lon":-122.302216},{"id":"CVLZ-0113","name":"Brooklyn Ave NE Block 2","street":"Brooklyn Ave NE","uc":"University District","stype":"collector","bmix":"food_heavy","len":46,"tlim":15,"hrs":"7:00-19:00","permit":false,"demand":40.0,"network":12.4,"turnover":19.9,"temporal":14.0,"score":86.2,"tier":"HIGH","lat":47.671406,"lon":-122.302209},{"id":"CVLZ-0114","name":"Brooklyn Ave NE Block 3","street":"Brooklyn Ave NE","uc":"University District","stype":"collector","bmix":"food_heavy","len":32,"tlim":45,"hrs":"6:00-20:00","permit":false,"demand":40.0,"network":13.0,"turnover":10.9,"temporal":12.6,"score":76.5,"tier":"HIGH","lat":47.666398,"lon":-122.301847},{"id":"CVLZ-0115","name":"Brooklyn Ave NE Block 4","street":"Brooklyn Ave NE","uc":"University District","stype":"collector","bmix":"office_heavy","len":21,"tlim":30,"hrs":"6:00-20:00","permit":false,"demand":26.7,"network":15.1,"turnover":17.1,"temporal":14.0,"score":72.9,"tier":"MEDIUM","lat":47.660549,"lon":-122.302162},{"id":"CVLZ-0116","name":"Brooklyn Ave NE Block 5","street":"Brooklyn Ave NE","uc":"University District","stype":"collector","bmix":"food_heavy","len":30,"tlim":20,"hrs":"7:00-19:00","permit":true,"demand":40.0,"network":14.7,"turnover":19.2,"temporal":12.3,"score":86.1,"tier":"HIGH","lat":47.667226,"lon":-122.302149},{"id":"CVLZ-0117","name":"NE Campus Pkwy Block 1","street":"NE Campus Pkwy","uc":"University District","stype":"local","bmix":"retail_heavy","len":81,"tlim":20,"hrs":"6:00-18:00","permit":true,"demand":38.6,"network":7.0,"turnover":20.0,"temporal":14.5,"score":80.0,"tier":"HIGH","lat":47.66,"lon":-122.300472},{"id":"CVLZ-0119","name":"NE Campus Pkwy Block 3","street":"NE Campus Pkwy","uc":"University District","stype":"local","bmix":"retail_heavy","len":70,"tlim":60,"hrs":"7:00-18:00","permit":false,"demand":36.3,"network":5.6,"turnover":7.4,"temporal":14.4,"score":63.7,"tier":"MEDIUM","lat":47.66,"lon":-122.304192},{"id":"CVLZ-0120","name":"NE Campus Pkwy Block 4","street":"NE Campus Pkwy","uc":"University District","stype":"local","bmix":"mixed","len":55,"tlim":15,"hrs":"6:00-20:00","permit":false,"demand":25.5,"network":6.5,"turnover":19.6,"temporal":12.6,"score":64.1,"tier":"MEDIUM","lat":47.66,"lon":-122.302978},{"id":"CVLZ-0121","name":"Queen Anne Ave N Block 1","street":"Queen Anne Ave N","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"food_heavy","len":28,"tlim":20,"hrs":"7:00-18:00","permit":true,"demand":40.0,"network":22.1,"turnover":18.2,"temporal":14.4,"score":94.7,"tier":"HIGH","lat":47.640913,"lon":-122.355061},{"id":"CVLZ-0122","name":"Queen Anne Ave N Block 2","street":"Queen Anne Ave N","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"retail_heavy","len":94,"tlim":20,"hrs":"6:00-19:00","permit":false,"demand":24.7,"network":22.6,"turnover":18.2,"temporal":12.0,"score":77.6,"tier":"HIGH","lat":47.638335,"lon":-122.355061},{"id":"CVLZ-0123","name":"Queen Anne Ave N Block 3","street":"Queen Anne Ave N","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"food_heavy","len":70,"tlim":15,"hrs":"6:00-19:00","permit":true,"demand":36.9,"network":22.6,"turnover":19.2,"temporal":14.4,"score":93.0,"tier":"HIGH","lat":47.644185,"lon":-122.354948},{"id":"CVLZ-0124","name":"Queen Anne Ave N Block 4","street":"Queen Anne Ave N","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"food_heavy","len":45,"tlim":45,"hrs":"7:00-18:00","permit":false,"demand":37.0,"network":20.9,"turnover":10.4,"temporal":14.7,"score":83.1,"tier":"HIGH","lat":47.638115,"lon":-122.354832},{"id":"CVLZ-0125","name":"Queen Anne Ave N Block 5","street":"Queen Anne Ave N","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"retail_heavy","len":105,"tlim":45,"hrs":"6:00-18:00","permit":true,"demand":31.9,"network":22.8,"turnover":10.0,"temporal":12.9,"score":77.6,"tier":"HIGH","lat":47.644755,"lon":-122.355025},{"id":"CVLZ-0126","name":"1st Ave W Block 1","street":"1st Ave W","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"retail_heavy","len":75,"tlim":30,"hrs":"7:00-19:00","permit":true,"demand":31.2,"network":24.3,"turnover":17.7,"temporal":14.4,"score":87.5,"tier":"HIGH","lat":47.635,"lon":-122.355863},{"id":"CVLZ-0127","name":"1st Ave W Block 2","street":"1st Ave W","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"retail_heavy","len":37,"tlim":15,"hrs":"7:00-20:00","permit":false,"demand":31.8,"network":20.7,"turnover":18.8,"temporal":12.5,"score":83.9,"tier":"HIGH","lat":47.635,"lon":-122.361286},{"id":"CVLZ-0128","name":"1st Ave W Block 3","street":"1st Ave W","uc":"Uptown / Queen Anne","stype":"arterial","bmix":"retail_heavy","len":57,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":22.2,"network":24.3,"turnover":16.9,"temporal":13.6,"score":77.1,"tier":"HIGH","lat":47.635,"lon":-122.351548},{"id":"CVLZ-0129","name":"Galer St Block 1","street":"Galer St","uc":"Uptown / Queen Anne","stype":"collector","bmix":"retail_heavy","len":116,"tlim":45,"hrs":"7:00-19:00","permit":false,"demand":21.2,"network":13.6,"turnover":9.9,"temporal":12.6,"score":57.3,"tier":"MEDIUM","lat":47.638,"lon":-122.354671},{"id":"CVLZ-0130","name":"Galer St Block 2","street":"Galer St","uc":"Uptown / Queen Anne","stype":"collector","bmix":"food_heavy","len":106,"tlim":30,"hrs":"6:00-18:00","permit":false,"demand":36.9,"network":13.3,"turnover":17.5,"temporal":12.2,"score":79.8,"tier":"HIGH","lat":47.638,"lon":-122.353809},{"id":"CVLZ-0131","name":"Galer St Block 3","street":"Galer St","uc":"Uptown / Queen Anne","stype":"collector","bmix":"mixed","len":111,"tlim":20,"hrs":"6:00-19:00","permit":false,"demand":16.3,"network":13.4,"turnover":19.2,"temporal":14.0,"score":62.9,"tier":"MEDIUM","lat":47.638,"lon":-122.355173},{"id":"CVLZ-0132","name":"Galer St Block 4","street":"Galer St","uc":"Uptown / Queen Anne","stype":"collector","bmix":"mixed","len":73,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":20.6,"network":14.2,"turnover":6.9,"temporal":12.0,"score":53.7,"tier":"LOW","lat":47.638,"lon":-122.345585},{"id":"CVLZ-0133","name":"Galer St Block 5","street":"Galer St","uc":"Uptown / Queen Anne","stype":"collector","bmix":"office_heavy","len":104,"tlim":30,"hrs":"7:00-18:00","permit":false,"demand":20.1,"network":16.1,"turnover":17.4,"temporal":13.0,"score":66.6,"tier":"MEDIUM","lat":47.638,"lon":-122.360182},{"id":"CVLZ-0134","name":"Nickerson St Block 1","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"office_heavy","len":39,"tlim":30,"hrs":"7:00-20:00","permit":false,"demand":28.6,"network":8.9,"turnover":16.1,"temporal":13.9,"score":67.4,"tier":"MEDIUM","lat":47.644214,"lon":-122.349764},{"id":"CVLZ-0135","name":"Nickerson St Block 2","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"retail_heavy","len":57,"tlim":15,"hrs":"7:00-18:00","permit":true,"demand":28.7,"network":7.0,"turnover":18.7,"temporal":13.0,"score":67.5,"tier":"MEDIUM","lat":47.645903,"lon":-122.350139},{"id":"CVLZ-0136","name":"Nickerson St Block 3","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"food_heavy","len":93,"tlim":30,"hrs":"7:00-20:00","permit":false,"demand":36.4,"network":7.2,"turnover":18.3,"temporal":14.0,"score":75.9,"tier":"HIGH","lat":47.649485,"lon":-122.349842},{"id":"CVLZ-0137","name":"Nickerson St Block 4","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"food_heavy","len":59,"tlim":20,"hrs":"6:00-18:00","permit":true,"demand":24.1,"network":8.2,"turnover":18.5,"temporal":13.8,"score":64.6,"tier":"MEDIUM","lat":47.644252,"lon":-122.350287},{"id":"CVLZ-0138","name":"Nickerson St Block 5","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"mixed","len":77,"tlim":60,"hrs":"6:00-19:00","permit":true,"demand":23.9,"network":6.2,"turnover":5.8,"temporal":12.6,"score":48.5,"tier":"LOW","lat":47.641394,"lon":-122.349799},{"id":"CVLZ-0139","name":"Nickerson St Block 6","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"food_heavy","len":119,"tlim":15,"hrs":"7:00-19:00","permit":false,"demand":23.7,"network":6.9,"turnover":18.7,"temporal":15.0,"score":64.3,"tier":"MEDIUM","lat":47.640184,"lon":-122.349751},{"id":"CVLZ-0140","name":"Nickerson St Block 7","street":"Nickerson St","uc":"Uptown / Queen Anne","stype":"local","bmix":"food_heavy","len":105,"tlim":60,"hrs":"6:00-18:00","permit":true,"demand":32.5,"network":6.7,"turnover":6.3,"temporal":12.3,"score":57.8,"tier":"MEDIUM","lat":47.646514,"lon":-122.349802},{"id":"CVLZ-0141","name":"5th Ave N Block 1","street":"5th Ave N","uc":"Northgate","stype":"arterial","bmix":"office_heavy","len":90,"tlim":20,"hrs":"6:00-18:00","permit":false,"demand":29.4,"network":23.2,"turnover":19.5,"temporal":12.5,"score":84.6,"tier":"HIGH","lat":47.712948,"lon":-122.32494},{"id":"CVLZ-0142","name":"5th Ave N Block 2","street":"5th Ave N","uc":"Northgate","stype":"arterial","bmix":"food_heavy","len":73,"tlim":30,"hrs":"6:00-20:00","permit":true,"demand":31.7,"network":22.1,"turnover":18.3,"temporal":12.0,"score":84.1,"tier":"HIGH","lat":47.708663,"lon":-122.324989},{"id":"CVLZ-0143","name":"5th Ave N Block 3","street":"5th Ave N","uc":"Northgate","stype":"arterial","bmix":"office_heavy","len":30,"tlim":45,"hrs":"6:00-20:00","permit":true,"demand":19.5,"network":24.9,"turnover":10.9,"temporal":13.1,"score":68.5,"tier":"MEDIUM","lat":47.71642,"lon":-122.325259},{"id":"CVLZ-0144","name":"5th Ave N Block 4","street":"5th Ave N","uc":"Northgate","stype":"arterial","bmix":"office_heavy","len":41,"tlim":60,"hrs":"7:00-18:00","permit":true,"demand":16.8,"network":24.9,"turnover":4.1,"temporal":14.2,"score":60.0,"tier":"MEDIUM","lat":47.712328,"lon":-122.325014},{"id":"CVLZ-0145","name":"5th Ave N Block 5","street":"5th Ave N","uc":"Northgate","stype":"arterial","bmix":"office_heavy","len":100,"tlim":30,"hrs":"6:00-20:00","permit":false,"demand":26.5,"network":21.2,"turnover":17.7,"temporal":12.3,"score":77.7,"tier":"HIGH","lat":47.711797,"lon":-122.325203},{"id":"CVLZ-0146","name":"Northgate Ave N Block 1","street":"Northgate Ave N","uc":"Northgate","stype":"arterial","bmix":"retail_heavy","len":20,"tlim":15,"hrs":"6:00-20:00","permit":false,"demand":22.6,"network":23.9,"turnover":19.7,"temporal":13.8,"score":80.1,"tier":"HIGH","lat":47.71,"lon":-122.323763},{"id":"CVLZ-0147","name":"Northgate Ave N Block 2","street":"Northgate Ave N","uc":"Northgate","stype":"arterial","bmix":"food_heavy","len":63,"tlim":30,"hrs":"7:00-19:00","permit":false,"demand":33.9,"network":20.8,"turnover":15.3,"temporal":12.4,"score":82.3,"tier":"HIGH","lat":47.71,"lon":-122.324303},{"id":"CVLZ-0148","name":"Northgate Ave N Block 3","street":"Northgate Ave N","uc":"Northgate","stype":"arterial","bmix":"mixed","len":80,"tlim":15,"hrs":"7:00-18:00","permit":false,"demand":17.5,"network":21.7,"turnover":18.8,"temporal":13.0,"score":71.0,"tier":"MEDIUM","lat":47.71,"lon":-122.32686},{"id":"CVLZ-0149","name":"Northgate Ave N Block 4","street":"Northgate Ave N","uc":"Northgate","stype":"arterial","bmix":"mixed","len":27,"tlim":60,"hrs":"6:00-20:00","permit":false,"demand":17.7,"network":22.5,"turnover":7.3,"temporal":12.8,"score":60.3,"tier":"MEDIUM","lat":47.71,"lon":-122.331161},{"id":"CVLZ-0150","name":"NE 103rd St Block 1","street":"NE 103rd St","uc":"Northgate","stype":"collector","bmix":"office_heavy","len":45,"tlim":20,"hrs":"7:00-20:00","permit":false,"demand":29.1,"network":16.4,"turnover":18.3,"temporal":14.4,"score":78.2,"tier":"HIGH","lat":47.705,"lon":-122.312425},{"id":"CVLZ-0151","name":"NE 103rd St Block 2","street":"NE 103rd St","uc":"Northgate","stype":"collector","bmix":"food_heavy","len":98,"tlim":60,"hrs":"6:00-18:00","permit":true,"demand":35.4,"network":14.8,"turnover":5.6,"temporal":13.5,"score":69.3,"tier":"MEDIUM","lat":47.705,"lon":-122.321565},{"id":"CVLZ-0152","name":"NE 103rd St Block 3","street":"NE 103rd St","uc":"Northgate","stype":"collector","bmix":"office_heavy","len":114,"tlim":45,"hrs":"6:00-20:00","permit":false,"demand":21.0,"network":14.7,"turnover":11.5,"temporal":14.0,"score":61.2,"tier":"MEDIUM","lat":47.705,"lon":-122.33305},{"id":"CVLZ-0153","name":"Corliss Ave N Block 1","street":"Corliss Ave N","uc":"Northgate","stype":"collector","bmix":"retail_heavy","len":79,"tlim":60,"hrs":"7:00-20:00","permit":false,"demand":27.6,"network":15.6,"turnover":4.6,"temporal":12.6,"score":60.4,"tier":"MEDIUM","lat":47.713156,"lon":-122.32991},{"id":"CVLZ-0154","name":"Corliss Ave N Block 2","street":"Corliss Ave N","uc":"Northgate","stype":"collector","bmix":"food_heavy","len":34,"tlim":15,"hrs":"7:00-18:00","permit":false,"demand":40.0,"network":13.6,"turnover":18.0,"temporal":12.5,"score":84.1,"tier":"HIGH","lat":47.710719,"lon":-122.329865},{"id":"CVLZ-0155","name":"Corliss Ave N Block 3","street":"Corliss Ave N","uc":"Northgate","stype":"collector","bmix":"retail_heavy","len":85,"tlim":30,"hrs":"7:00-19:00","permit":true,"demand":22.0,"network":16.8,"turnover":17.3,"temporal":14.8,"score":70.9,"tier":"MEDIUM","lat":47.713903,"lon":-122.329988},{"id":"CVLZ-0156","name":"Corliss Ave N Block 4","street":"Corliss Ave N","uc":"Northgate","stype":"collector","bmix":"mixed","len":118,"tlim":30,"hrs":"6:00-19:00","permit":false,"demand":22.4,"network":14.4,"turnover":16.3,"temporal":13.8,"score":66.9,"tier":"MEDIUM","lat":47.714998,"lon":-122.329983},{"id":"CVLZ-0157","name":"NE 105th St Block 1","street":"NE 105th St","uc":"Northgate","stype":"local","bmix":"retail_heavy","len":75,"tlim":45,"hrs":"6:00-18:00","permit":false,"demand":20.5,"network":9.5,"turnover":12.3,"temporal":13.0,"score":55.3,"tier":"MEDIUM","lat":47.712,"lon":-122.323983},{"id":"CVLZ-0158","name":"NE 105th St Block 2","street":"NE 105th St","uc":"Northgate","stype":"local","bmix":"office_heavy","len":113,"tlim":15,"hrs":"6:00-18:00","permit":false,"demand":29.3,"network":9.1,"turnover":19.3,"temporal":12.4,"score":70.1,"tier":"MEDIUM","lat":47.712,"lon":-122.323781},{"id":"CVLZ-0159","name":"NE 105th St Block 3","street":"NE 105th St","uc":"Northgate","stype":"local","bmix":"food_heavy","len":44,"tlim":15,"hrs":"6:00-19:00","permit":true,"demand":33.3,"network":7.5,"turnover":18.5,"temporal":12.2,"score":71.5,"tier":"MEDIUM","lat":47.712,"lon":-122.325814}];
+const UC_DATA   = [{"name":"Downtown Seattle","coords":[[47.5995,-122.3103],[47.616,-122.3103],[47.616,-122.337],[47.5995,-122.337],[47.5995,-122.3103]]},{"name":"South Lake Union","coords":[[47.62,-122.328],[47.635,-122.328],[47.635,-122.348],[47.62,-122.348],[47.62,-122.328]]},{"name":"Capitol Hill / First Hill","coords":[[47.615,-122.298],[47.634,-122.298],[47.634,-122.327],[47.615,-122.327],[47.615,-122.298]]},{"name":"University District","coords":[[47.655,-122.289],[47.675,-122.289],[47.675,-122.314],[47.655,-122.314],[47.655,-122.289]]},{"name":"Uptown / Queen Anne","coords":[[47.632,-122.34],[47.652,-122.34],[47.652,-122.365],[47.632,-122.365],[47.632,-122.34]]},{"name":"Northgate","coords":[[47.701,-122.309],[47.721,-122.309],[47.721,-122.336],[47.701,-122.336],[47.701,-122.309]]}];
+
+/* ──────────────────── STATE ──────────────────── */
+let filteredData = [...CVLZ_DATA];
+let currentLayer = 'tier';
+let showBuffers  = false;
+let showHeat     = false;
+let activeTiers  = new Set(['HIGH','MEDIUM','LOW']);
+let sortCol = 'score'; let sortDir = 'desc';
+
+/* ──────────────────── MAP INIT ──────────────────── */
+const map = L.map('map', {
+  center: [47.635, -122.320], zoom: 13,
+  zoomControl: true, attributionControl: true
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  opacity: 0.65
+}).addTo(map);
+
+/* UC Polygon layer (always on) */
+const ucGroup = L.layerGroup().addTo(map);
+const ucColors = {
+  'Downtown Seattle':         '#4B2E83',
+  'South Lake Union':         '#6A4BAA',
+  'Capitol Hill / First Hill':'#8A6BBB',
+  'University District':      '#3A2066',
+  'Uptown / Queen Anne':      '#5C3D99',
+  'Northgate':                '#7755AA',
+};
+
+UC_DATA.forEach(uc => {
+  if (!uc.coords || uc.coords.length < 3) return;
+  const col = ucColors[uc.name] || '#4B2E83';
+  const poly = L.polygon(uc.coords, {
+    color: col, weight: 2.5, opacity: .8,
+    fillColor: col, fillOpacity: .06,
+    dashArray: '6 4'
+  }).addTo(ucGroup);
+  poly.bindTooltip(uc.name, {
+    permanent: false, sticky: true,
+    className: 'uc-tooltip', direction: 'top', offset: [0, -4]
+  });
+  poly.on('click', () => {
+    const sel = document.getElementById('f-uc');
+    sel.value = sel.value === uc.name ? 'all' : uc.name;
+    applyFilters();
+  });
+});
+
+/* CVLZ marker layer */
+const markerGroup = L.layerGroup().addTo(map);
+const bufferGroup = L.layerGroup();
+let heatLayer     = null;
+let markerCache   = {};
+
+/* ──────────────────── COLOR HELPERS ──────────────────── */
+function lerpColor(c1, c2, t) {
+  const h = s => parseInt(s,16);
+  const r1=h(c1.slice(1,3)),g1=h(c1.slice(3,5)),b1=h(c1.slice(5,7));
+  const r2=h(c2.slice(1,3)),g2=h(c2.slice(3,5)),b2=h(c2.slice(5,7));
+  const r=Math.round(r1+t*(r2-r1)), g=Math.round(g1+t*(g2-g1)), b=Math.round(b1+t*(b2-b1));
+  return `rgb(${r},${g},${b})`;
+}
+const LAYER_DEFS = {
+  tier:     { title: 'Effectiveness Tier', type: 'tier' },
+  demand:   { title: 'Commercial Demand Score', type: 'gradient', field:'demand',   max:40,  lo:'#E8D5A3', hi:'#2A1A4E' },
+  network:  { title: 'Network Importance Score', type: 'gradient', field:'network',  max:25,  lo:'#E8EDF4', hi:'#1A3A6A' },
+  turnover: { title: 'Turnover Efficiency Score', type: 'gradient', field:'turnover', max:20,  lo:'#E8F5E9', hi:'#1B5E20' },
+  temporal: { title: 'Temporal Coverage Score',  type: 'gradient', field:'temporal', max:15,  lo:'#FFF3E0', hi:'#E65100' },
+};
+
+function getMarkerColor(d, layer) {
+  const def = LAYER_DEFS[layer];
+  if (def.type === 'tier') {
+    return { HIGH:'#2D6A4F', MEDIUM:'#E9C46A', LOW:'#C62828' }[d.tier] || '#888';
+  }
+  const t = Math.min(1, Math.max(0, d[def.field] / def.max));
+  return lerpColor(def.lo, def.hi, t);
+}
+
+function getMarkerRadius(d, layer) {
+  if (layer === 'tier') return 7;
+  const def = LAYER_DEFS[layer];
+  const t = Math.min(1, Math.max(0, d[def.field] / def.max));
+  return 5 + t * 7;
+}
+
+/* ──────────────────── POPUP BUILDER ──────────────────── */
+function buildPopup(d) {
+  const scoreBarColor = { demand:'#4B2E83', network:'#B7A57A', turnover:'#2D6A4F', temporal:'#E65100' };
+  const maxes = { demand:40, network:25, turnover:20, temporal:15 };
+  const labels= { demand:'Comm. Demand', network:'Network Importance', turnover:'Turnover Effcy.', temporal:'Temporal Coverage' };
+
+  let bars = '';
+  ['demand','network','turnover','temporal'].forEach(k => {
+    const pct = Math.round((d[k]/maxes[k])*100);
+    bars += `<div class="score-row-item">
+      <span class="score-row-label">${labels[k]}</span>
+      <div class="score-bar-bg">
+        <div class="score-bar-fill" style="width:${pct}%;background:${scoreBarColor[k]}"></div>
+      </div>
+      <span class="score-row-val">${d[k]}/${maxes[k]}</span>
+    </div>`;
+  });
+
+  const bmixLabel = (d.bmix||'mixed').replace(/_/g,' ').replace('heavy','‑dominant');
+  return `<div class="cvlz-popup">
+    <div class="popup-top">
+      <span class="popup-tier ${d.tier}">${d.tier}</span>
+      <span class="popup-uc">${d.uc}</span>
+    </div>
+    <div class="popup-name">${d.name}</div>
+    <div class="popup-sub">${d.id} &nbsp;·&nbsp; ${d.stype.charAt(0).toUpperCase()+d.stype.slice(1)} street</div>
+    <div class="popup-score-big">
+      <span class="popup-score-num">${d.score}</span><span class="popup-score-denom"> / 100</span>
+      <div class="popup-score-label">Effectiveness Score</div>
+    </div>
+    <div class="score-rows">${bars}</div>
+    <table class="popup-attrs">
+      <tr><td>Time Limit</td><td>${d.tlim} min</td></tr>
+      <tr><td>Length</td><td>${d.len} ft</td></tr>
+      <tr><td>Hours</td><td>${d.hrs}</td></tr>
+      <tr><td>Business Mix</td><td>${bmixLabel}</td></tr>
+      <tr><td>Permit Req.</td><td>${d.permit ? 'Yes' : 'No'}</td></tr>
+    </table>
+  </div>`;
+}
+
+/* ──────────────────── RENDER MARKERS ──────────────────── */
+function renderMarkers(data) {
+  markerGroup.clearLayers();
+  bufferGroup.clearLayers();
+  markerCache = {};
+
+  // Heatmap data
+  const heatData = data.map(d => [d.lat, d.lon, d.demand / 40]);
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (showHeat) {
+    heatLayer = L.heatLayer(heatData, {
+      radius: 30, blur: 25, maxZoom: 17,
+      gradient: { 0.0:'#E8D5A3', 0.4:'#B7A57A', 0.7:'#6A4BAA', 1.0:'#2A1A4E' }
+    }).addTo(map);
+  }
+
+  data.forEach(d => {
+    const col = getMarkerColor(d, currentLayer);
+    const r   = getMarkerRadius(d, currentLayer);
+    const m   = L.circleMarker([d.lat, d.lon], {
+      radius: r, color: '#fff', weight: 1.5, opacity: .9,
+      fillColor: col, fillOpacity: .85
+    });
+    m.bindPopup(buildPopup(d), { maxWidth: 300, className: '' });
+    m.on('click', () => highlightTableRow(d.id));
+    m.addTo(markerGroup);
+    markerCache[d.id] = m;
+
+    if (showBuffers) {
+      L.circle([d.lat, d.lon], {
+        radius: 100, color: '#4B2E83', weight: 1, opacity: .4,
+        fillColor: '#4B2E83', fillOpacity: .06
+      }).addTo(bufferGroup);
+    }
+  });
+
+  if (showBuffers && !map.hasLayer(bufferGroup)) bufferGroup.addTo(map);
+  if (!showBuffers && map.hasLayer(bufferGroup)) map.removeLayer(bufferGroup);
+}
+
+/* ──────────────────── LEGEND ──────────────────── */
+function updateLegend(layer) {
+  const def = LAYER_DEFS[layer];
+  const titleEl = document.getElementById('map-legend-title');
+  const bodyEl  = document.getElementById('map-legend-body');
+  titleEl.textContent = def.title;
+
+  if (def.type === 'tier') {
+    bodyEl.innerHTML = `
+      <div class="legend-item"><div class="legend-swatch" style="background:#2D6A4F"></div>
+        <div><div class="legend-text">High</div><div class="legend-sub">Score ≥ 75</div></div></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#E9C46A"></div>
+        <div><div class="legend-text">Medium</div><div class="legend-sub">Score 55–74</div></div></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#C62828"></div>
+        <div><div class="legend-text">Low</div><div class="legend-sub">Score &lt; 55</div></div></div>
+      <div class="legend-item" style="margin-top:8px"><div class="legend-swatch rect" style="background:rgba(75,46,131,.12);border:2px dashed #4B2E83;width:18px;height:14px;border-radius:3px"></div>
+        <div><div class="legend-text">Urban Center</div><div class="legend-sub">PSRC designated</div></div></div>`;
+  } else {
+    const grad = `linear-gradient(to right, ${def.lo}, ${def.hi})`;
+    bodyEl.innerHTML = `
+      <div class="legend-gradient" style="background:${grad}"></div>
+      <div class="legend-grad-labels"><span>Low (0)</span><span>High (${def.max})</span></div>
+      <div class="legend-sub" style="margin-top:6px">Circle size also scales with score</div>`;
+  }
+}
+
+/* ──────────────────── LAYER SWITCHING ──────────────────── */
+function setLayer(layer) {
+  currentLayer = layer;
+  document.querySelectorAll('.layer-btn:not(.buf-btn)').forEach(b => b.classList.remove('active'));
+  document.getElementById('lb-' + layer).classList.add('active');
+  updateLegend(layer);
+  renderMarkers(filteredData);
+}
+
+function toggleBuffers() {
+  showBuffers = !showBuffers;
+  document.getElementById('lb-buffer').classList.toggle('active', showBuffers);
+  renderMarkers(filteredData);
+}
+
+function toggleHeat() {
+  showHeat = !showHeat;
+  document.getElementById('lb-heat').classList.toggle('active', showHeat);
+  const notice = document.getElementById('heat-notice');
+  notice.classList.toggle('visible', showHeat);
+  renderMarkers(filteredData);
+}
+
+/* ──────────────────── TIER TOGGLE ──────────────────── */
+function toggleTier(tier) {
+  if (activeTiers.has(tier)) {
+    if (activeTiers.size > 1) activeTiers.delete(tier);
+  } else {
+    activeTiers.add(tier);
+  }
+  document.getElementById('tr-' + tier).classList.toggle('active', activeTiers.has(tier));
+  applyFilters();
+}
+
+/* ──────────────────── FILTERS ──────────────────── */
+function applyFilters() {
+  const uc    = document.getElementById('f-uc').value;
+  const stype = document.getElementById('f-stype').value;
+  const minS  = parseInt(document.getElementById('f-score').value) || 0;
+  document.getElementById('range-disp').textContent = minS;
+
+  filteredData = CVLZ_DATA.filter(d => {
+    if (uc !== 'all' && d.uc !== uc) return false;
+    if (stype !== 'all' && d.stype !== stype) return false;
+    if (d.score < minS) return false;
+    if (!activeTiers.has(d.tier)) return false;
+    return true;
+  });
+
+  updateKPIs();
+  renderMarkers(filteredData);
+  updateCharts();
+  renderTable();
+}
+
+/* ──────────────────── KPIs ──────────────────── */
+function updateKPIs() {
+  const n = filteredData.length;
+  const avg = n ? (filteredData.reduce((s,d)=>s+d.score,0)/n).toFixed(1) : '—';
+  const hi  = filteredData.filter(d=>d.tier==='HIGH').length;
+  document.getElementById('kpi-total').textContent = n;
+  document.getElementById('kpi-avg').textContent   = avg;
+  document.getElementById('kpi-high').textContent  = hi;
+  document.getElementById('kpi-high-pct').textContent = n ? `${((hi/n)*100).toFixed(0)}% of zones` : '—';
+  ['HIGH','MEDIUM','LOW'].forEach(t => {
+    document.getElementById('tc-'+t).textContent = filteredData.filter(d=>d.tier===t).length;
+  });
+}
+
+/* ──────────────────── CHARTS ──────────────────── */
+const UW = ['#4B2E83','#B7A57A','#2D6A4F','#2E86AB','#6A4BAA','#85754D'];
+Chart.defaults.font.family = "'Montserrat', sans-serif";
+Chart.defaults.color = '#5C5470';
+
+let chartHist, chartUC, chartScatter, chartRadar;
+
+function initCharts() {
+  // Histogram
+  const histCtx = document.getElementById('chart-hist').getContext('2d');
+  const bins = Array.from({length:11},(_,i)=>i*10);
+  chartHist = new Chart(histCtx, {
+    type:'bar',
+    data:{ labels: bins.slice(0,-1).map(b=>`${b}–${b+10}`), datasets:[{
+      label:'CVLZs', data:[], borderRadius:4,
+      backgroundColor: bins.slice(0,-1).map(b => b>=70?'rgba(75,46,131,.8)':b>=50?'rgba(183,165,122,.8)':'rgba(198,40,40,.7)'),
+      borderWidth:0
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{title:c=>`Score ${c[0].label}`,label:c=>`${c.parsed.y} zones`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:'#F4F1EC'},ticks:{font:{size:9}}}}
+    }
+  });
+
+  // Urban Center bar
+  const ucCtx = document.getElementById('chart-uc').getContext('2d');
+  chartUC = new Chart(ucCtx, {
+    type:'bar',
+    data:{ labels:[], datasets:[{
+      label:'Avg Score', data:[], borderRadius:5,
+      backgroundColor: Object.values(ucColors).map(c=>c+'CC'), borderWidth:0
+    }]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.parsed.x.toFixed(1)} / 100`}}},
+      scales:{
+        x:{beginAtZero:true, max:100, grid:{color:'#F4F1EC'}, ticks:{font:{size:9}}},
+        y:{grid:{display:false}, ticks:{font:{size:9}, maxTicksLimit:8}}
+      }
+    }
+  });
+
+  // Scatter
+  const scCtx = document.getElementById('chart-scatter').getContext('2d');
+  chartScatter = new Chart(scCtx, {
+    type:'scatter',
+    data:{ datasets:[
+      {label:'HIGH',  data:[], backgroundColor:'rgba(45,106,79,.7)',  pointRadius:4},
+      {label:'MEDIUM',data:[], backgroundColor:'rgba(233,196,106,.8)', pointRadius:4},
+      {label:'LOW',   data:[], backgroundColor:'rgba(198,40,40,.7)',  pointRadius:5},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:9}}},
+        tooltip:{callbacks:{label:c=>`Demand: ${c.parsed.x}, Score: ${c.parsed.y}`}}},
+      scales:{
+        x:{title:{display:true,text:'Demand Score',font:{size:9}},grid:{color:'#F4F1EC'},ticks:{font:{size:9}}},
+        y:{title:{display:true,text:'Total Score',font:{size:9}},grid:{color:'#F4F1EC'},ticks:{font:{size:9}}}
+      }
+    }
+  });
+
+  // Mini radar/bar in sidebar
+  const rCtx = document.getElementById('mini-radar').getContext('2d');
+  chartRadar = new Chart(rCtx, {
+    type:'bar',
+    data:{ labels:['Demand\n(/40)','Network\n(/25)','Turnover\n(/20)','Temporal\n(/15)'],
+      datasets:[{
+        label:'Avg score', data:[],
+        backgroundColor:['rgba(75,46,131,.8)','rgba(183,165,122,.85)','rgba(45,106,79,.8)','rgba(230,81,0,.7)'],
+        borderRadius:4, borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y.toFixed(1)}`}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:9},maxRotation:0}},
+        y:{beginAtZero:true,grid:{color:'#F4F1EC'},ticks:{font:{size:9}}}
+      }
+    }
+  });
+
+  updateCharts();
+}
+
+function updateCharts() {
+  if (!chartHist) return;
+  const fd = filteredData;
+  if (!fd.length) { [chartHist,chartUC,chartScatter,chartRadar].forEach(c=>c.update('none')); return; }
+
+  // Histogram
+  const binW = 10;
+  const binsMap = Array(11).fill(0);
+  fd.forEach(d => { const i = Math.min(10, Math.floor(d.score/binW)); binsMap[i]++; });
+  chartHist.data.datasets[0].data = binsMap.slice(0,-1);
+  chartHist.update('none');
+
+  // UC averages
+  const ucMap = {};
+  fd.forEach(d => { if (!ucMap[d.uc]) ucMap[d.uc]={sum:0,n:0}; ucMap[d.uc].sum+=d.score; ucMap[d.uc].n++; });
+  const ucSorted = Object.entries(ucMap).sort((a,b)=>b[1].sum/b[1].n - a[1].sum/a[1].n);
+  chartUC.data.labels   = ucSorted.map(([k])=>k.replace(' / ','\n/\n').replace(' Seattle',''));
+  chartUC.data.datasets[0].data = ucSorted.map(([,v])=>+(v.sum/v.n).toFixed(1));
+  chartUC.update('none');
+
+  // Scatter
+  ['HIGH','MEDIUM','LOW'].forEach((tier,i) => {
+    chartScatter.data.datasets[i].data = fd.filter(d=>d.tier===tier).map(d=>({x:d.demand,y:d.score}));
+  });
+  chartScatter.update('none');
+
+  // Radar
+  const n = fd.length;
+  chartRadar.data.datasets[0].data = [
+    +(fd.reduce((s,d)=>s+d.demand,0)/n).toFixed(1),
+    +(fd.reduce((s,d)=>s+d.network,0)/n).toFixed(1),
+    +(fd.reduce((s,d)=>s+d.turnover,0)/n).toFixed(1),
+    +(fd.reduce((s,d)=>s+d.temporal,0)/n).toFixed(1),
+  ];
+  chartRadar.update('none');
+}
+
+/* ──────────────────── TABLE ──────────────────── */
+function renderTable() {
+  const cols = ['id','name','uc','stype','tlim','demand','network','turnover','temporal','score','tier'];
+  const sorted = [...filteredData].sort((a,b)=>{
+    const av=a[sortCol], bv=b[sortCol];
+    const cmp = av<bv?-1:av>bv?1:0;
+    return sortDir==='asc'?cmp:-cmp;
+  });
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = sorted.slice(0,200).map(d=>`
+    <tr onclick="flyTo('${d.id}')" id="tr-${d.id}">
+      <td>${d.id}</td>
+      <td>${d.name}</td>
+      <td style="font-size:10px">${d.uc}</td>
+      <td style="text-transform:capitalize">${d.stype}</td>
+      <td>${d.tlim} min</td>
+      <td>${d.demand}</td>
+      <td>${d.network}</td>
+      <td>${d.turnover}</td>
+      <td>${d.temporal}</td>
+      <td><strong>${d.score}</strong></td>
+      <td><span class="tier-badge ${d.tier}">${d.tier}</span></td>
+    </tr>`).join('');
+}
+
+window.sortTable = function(col) {
+  sortDir = sortCol===col ? (sortDir==='asc'?'desc':'asc') : 'desc';
+  sortCol = col;
+  renderTable();
+};
+
+function flyTo(id) {
+  const d = CVLZ_DATA.find(x=>x.id===id);
+  if (!d) return;
+  map.flyTo([d.lat, d.lon], 16, {duration:0.8});
+  setTimeout(()=>{ if(markerCache[id]) markerCache[id].openPopup(); }, 900);
+  highlightTableRow(id);
+}
+
+function highlightTableRow(id) {
+  document.querySelectorAll('#table-body tr').forEach(r=>r.classList.remove('highlighted'));
+  const row = document.getElementById('tr-'+id);
+  if (row) { row.classList.add('highlighted'); row.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+}
+
+/* ──────────────────── TAB SWITCHING ──────────────────── */
+function switchTab(tab) {
+  document.querySelectorAll('.bp-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.bp-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab === 'charts') setTimeout(()=>[chartHist,chartUC,chartScatter].forEach(c=>c&&c.resize()), 50);
+}
+
+/* ──────────────────── POPULATE FILTERS ──────────────────── */
+function populateFilters() {
+  const ucSelect = document.getElementById('f-uc');
+  const ucs = [...new Set(CVLZ_DATA.map(d=>d.uc))].sort();
+  ucs.forEach(uc => {
+    const opt = document.createElement('option');
+    opt.value = uc; opt.textContent = uc;
+    ucSelect.appendChild(opt);
+  });
+}
+
+/* ──────────────────── BOOT ──────────────────── */
+populateFilters();
+updateKPIs();
+renderMarkers(filteredData);
+updateLegend('tier');
+renderTable();
+initCharts();
+
+// Fix map after layout settles
+setTimeout(()=>map.invalidateSize(), 100);
+window.addEventListener('resize', ()=>{ map.invalidateSize(); [chartHist,chartUC,chartScatter,chartRadar].forEach(c=>c&&c.resize()); });
+
+</script>
+</body>
+</html>

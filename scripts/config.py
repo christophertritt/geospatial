@@ -114,7 +114,13 @@ DATA_COMPLETENESS   = 0.90   # share of parcels with GFA or units
 
 # ── Seattle Open Data / Socrata endpoints ────────────────────────────────────
 SOCRATA_DOMAIN = "data.seattle.gov"
-CVLZ_DATASET   = "tdmb-n22r"   # SDOT Street Signs
+CVLZ_DATASET   = "tdmb-n22r"   # legacy Socrata ID (deprecated)
+# Current SDOT Street Signs feature service (ArcGIS Online)
+CVLZ_FEATURE_SERVICE = (
+    "https://services.arcgis.com/ZOyb2t4B0UYuYNYH/arcgis/rest/services/"
+    "SDOT_Street_Signs/FeatureServer/1"
+)
+CVLZ_CATEGORY_CODE = "PCVL"  # commercial vehicle load zones
 PARCEL_DATASET = "https://data.seattle.gov/resource/5bgi-ypbi.geojson"
 
 # ── PSRC centers GeoJSON ──────────────────────────────────────────────────────

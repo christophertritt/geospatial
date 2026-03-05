@@ -33,7 +33,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import (
     DATA_RAW, DATA_PROCESSED, OUT_TABLES,
     CRS_GEO, CRS_PROJ,
-    SOCRATA_DOMAIN, CVLZ_DATASET, PARCEL_DATASET, PSRC_CENTERS_URL,
+    SOCRATA_DOMAIN, CVLZ_DATASET, CVLZ_FEATURE_SERVICE, CVLZ_CATEGORY_CODE,
+    PARCEL_DATASET, PSRC_CENTERS_URL,
     MIN_CVLZ_COUNT, MIN_DEMAND_PARCELS, DATA_COMPLETENESS,
 )
 
@@ -51,41 +52,22 @@ def fetch_cvlz() -> gpd.GeoDataFrame:
     print("[01] Fetching CVLZ sign locations from Seattle Open Data …")
     out = DATA_RAW / "cvlz_signs_raw.gpkg"
 
-    # Try Socrata first; fall back to plain GeoJSON endpoint
-    try:
-        from sodapy import Socrata
-        client = Socrata(SOCRATA_DOMAIN, None)  # anonymous (rate-limited)
-        results = client.get(
-            CVLZ_DATASET,
-            where="upper(category_desc) LIKE '%COMMERCIAL VEHICLE%'",
-            limit=5000,
-        )
-        df = pd.DataFrame(results)
-        # Coordinates come back as separate columns or a location dict
-        if "longitude" in df.columns and "latitude" in df.columns:
-            df = df.dropna(subset=["longitude", "latitude"])
-            gdf = gpd.GeoDataFrame(
-                df,
-                geometry=gpd.points_from_xy(
-                    df["longitude"].astype(float),
-                    df["latitude"].astype(float),
-                ),
-                crs=CRS_GEO,
-            )
-        else:
-            raise ValueError("Unexpected column layout – trying GeoJSON fallback")
-    except Exception as e:
-        print(f"  Socrata path failed ({e}). Trying GeoJSON endpoint …")
-        url = (
-            f"https://{SOCRATA_DOMAIN}/resource/{CVLZ_DATASET}.geojson"
-            "?$where=upper(category_desc) LIKE '%25COMMERCIAL VEHICLE%25'&$limit=5000"
-        )
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
-        gdf = gpd.read_file(resp.text)
+    # ArcGIS feature service (public) — returns GeoJSON in WGS-84
+    params = {
+        "where": f"CATEGORY='{CVLZ_CATEGORY_CODE}'",
+        "outFields": "*",
+        "f": "geojson",
+        "resultRecordCount": 5000,
+    }
+    resp = requests.get(CVLZ_FEATURE_SERVICE + "/query", params=params, timeout=120)
+    resp.raise_for_status()
+    data = resp.json()
+    features = data.get("features", [])
+    if not features:
+        raise ValueError("No CVLZ records returned from feature service.")
 
+    gdf = gpd.GeoDataFrame.from_features(features, crs=CRS_GEO)
     print(f"  → {len(gdf):,} CVLZ signs fetched")
-    gdf = gdf.to_crs(CRS_GEO)
     gdf.to_file(out, driver="GPKG", layer="cvlz")
     print(f"  Saved → {out.relative_to(DATA_RAW.parent.parent)}")
     return gdf
@@ -98,46 +80,50 @@ def fetch_cvlz() -> gpd.GeoDataFrame:
 def fetch_parcels() -> gpd.GeoDataFrame:
     """
     Download Seattle parcel polygons.
-    Full dataset is large; we stream via GeoJSON API.
+    Source: King County OpenData ArcGIS service (parcel_area layer).
+    We bound the query to the Seattle extent in WGS-84 to avoid pulling
+    the entire county.
     """
     print("[01] Fetching Seattle parcel polygons …")
     out = DATA_RAW / "seattle_parcels_raw.gpkg"
+    base_url = (
+        "https://gisdata.kingcounty.gov/arcgis/rest/services/"
+        "OpenDataPortal/property__parcel_area/MapServer/439/query"
+    )
+    seattle_bbox = {"xmin": -122.45, "ymin": 47.48, "xmax": -122.20, "ymax": 47.75}
 
-    # The Socrata parcel endpoint supports paging
-    records = []
+    features = []
     offset = 0
-    batch  = 50_000
+    page_size = 2000
 
     while True:
-        url = (
-            f"https://data.seattle.gov/resource/5bgi-ypbi.json"
-            f"?$limit={batch}&$offset={offset}"
-            "&$select=pin,proptype,unitlot,addr,juris,shape"
-        )
-        resp = requests.get(url, timeout=120)
+        params = {
+            "where": "1=1",
+            "geometry": json.dumps(seattle_bbox),
+            "geometryType": "esriGeometryEnvelope",
+            "inSR": 4326,
+            "spatialRel": "esriSpatialRelIntersects",
+            "outFields": "MAJOR,MINOR,PIN",
+            "outSR": 4326,
+            "f": "geojson",
+            "resultOffset": offset,
+            "resultRecordCount": page_size,
+        }
+        resp = requests.get(base_url, params=params, timeout=120)
         resp.raise_for_status()
-        batch_data = resp.json()
-        if not batch_data:
+        page = resp.json().get("features", [])
+        if not page:
             break
-        records.extend(batch_data)
-        offset += len(batch_data)
-        print(f"  … {offset:,} records")
-        if len(batch_data) < batch:
+        features.extend(page)
+        offset += len(page)
+        print(f"  … {offset:,} parcels")
+        if len(page) < page_size:
             break
 
-    # The shape field is a GeoJSON dict embedded in JSON
-    from shapely.geometry import shape
-    geoms, attrs = [], []
-    for r in records:
-        shp = r.pop("shape", None)
-        if shp and isinstance(shp, dict):
-            try:
-                geoms.append(shape(shp))
-                attrs.append(r)
-            except Exception:
-                pass
+    if not features:
+        raise ValueError("No parcel features returned from King County service.")
 
-    gdf = gpd.GeoDataFrame(attrs, geometry=geoms, crs=CRS_GEO)
+    gdf = gpd.GeoDataFrame.from_features(features, crs=CRS_GEO)
     print(f"  → {len(gdf):,} parcels")
     gdf.to_file(out, driver="GPKG", layer="parcels")
     print(f"  Saved → {out.relative_to(DATA_RAW.parent.parent)}")

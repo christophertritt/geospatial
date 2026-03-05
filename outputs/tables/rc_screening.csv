@@ -1,0 +1,4 @@
+center_name,n_cvlz,n_parcels,completeness,pass_cvlz,pass_parcels,pass_complete,SELECTED
+Seattle First Hill/Capitol Hill,109,3126,1.0,True,True,True,True
+Seattle South Lake Union,23,401,1.0,True,True,True,True
+Seattle Northgate,0,430,1.0,False,True,True,False
