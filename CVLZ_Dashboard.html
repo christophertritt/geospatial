@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Interactive map and analytics of Seattle commercial vehicle loading zone effectiveness by PSRC urban center.">
 <title>CVLZ Effectiveness · PSRC Urban Centers · Seattle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
@@ -17,31 +18,31 @@
 ═══════════════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --uw-purple:      #4B2E83;
-  --uw-purple-dark: #2A1A4E;
-  --uw-purple-mid:  #6A4BAA;
-  --uw-purple-pale: #EDE8F5;
-  --uw-gold:        #B7A57A;
-  --uw-gold-dark:   #85754D;
-  --uw-gold-pale:   #F4EDD8;
-  --bg:             #F0EDE8;
+  --uw-purple:      #0EA5E9; /* primary accent */
+  --uw-purple-dark: #0B749E;
+  --uw-purple-mid:  #38BDF8;
+  --uw-purple-pale: #E0F2FE;
+  --uw-gold:        #F59E0B;
+  --uw-gold-dark:   #B45309;
+  --uw-gold-pale:   #FFF7E6;
+  --bg:             #F8FAFC;
   --card:           #FFFFFF;
-  --border:         #DDD7CE;
-  --text-primary:   #1A1A2E;
-  --text-secondary: #5C5470;
-  --text-muted:     #8A8399;
-  --tier-high:      #2D6A4F;
-  --tier-high-bg:   #D8F3DC;
-  --tier-med:       #C67C00;
-  --tier-med-bg:    #FFF0C4;
-  --tier-low:       #C62828;
-  --tier-low-bg:    #FFEBEE;
-  --shadow-sm:      0 1px 4px rgba(26,26,46,.08);
-  --shadow-md:      0 3px 12px rgba(26,26,46,.12);
+  --border:         #E2E8F0;
+  --text-primary:   #0F172A;
+  --text-secondary: #334155;
+  --text-muted:     #64748B;
+  --tier-high:      #16A34A;
+  --tier-high-bg:   #DCFCE7;
+  --tier-med:       #F59E0B;
+  --tier-med-bg:    #FEF3C7;
+  --tier-low:       #DC2626;
+  --tier-low-bg:    #FEE2E2;
+  --shadow-sm:      0 1px 4px rgba(15,23,42,.08);
+  --shadow-md:      0 6px 18px rgba(15,23,42,.12);
   --radius:         10px;
   --radius-sm:      6px;
-  --font-sans:      'Montserrat', system-ui, sans-serif;
-  --font-serif:     'Merriweather', Georgia, serif;
+  --font-sans:      'Space Grotesk', 'Newsreader', sans-serif;
+  --font-serif:     'Newsreader', serif;
 }
 html, body { height: 100%; overflow: hidden; background: var(--bg); }
 
@@ -52,27 +53,29 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); }
 
 /* ── Header ── */
 header {
-  background: linear-gradient(135deg, var(--uw-purple-dark) 0%, var(--uw-purple) 60%, var(--uw-purple-mid) 100%);
+  background: linear-gradient(120deg, #0B1224 0%, #0F172A 45%, #0B749E 100%);
   color: #fff;
   padding: 0 20px;
-  height: 58px;
+  height: 60px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 14px;
-  border-bottom: 3px solid var(--uw-gold);
+  border-bottom: 2px solid rgba(255,255,255,.12);
 }
 .hdr-badge {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--uw-gold); display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--uw-purple-dark);
+  width: 38px; height: 38px; border-radius: 12px;
+  background: linear-gradient(160deg, var(--uw-gold) 0%, var(--uw-gold-dark) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: #0B1224;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 .hdr-titles h1 {
-  font-family: var(--font-sans); font-size: 16px; font-weight: 700; letter-spacing: .2px; line-height: 1.1;
+  font-family: var(--font-sans); font-size: 17px; font-weight: 700; letter-spacing: .1px; line-height: 1.15;
 }
 .hdr-titles p {
-  font-family: var(--font-serif); font-size: 11px; font-weight: 300; opacity: .8; letter-spacing: .3px;
+  font-family: var(--font-serif); font-size: 11px; font-weight: 400; opacity: .78; letter-spacing: .3px;
 }
 .hdr-spacer { flex: 1; }
 .hdr-meta {
@@ -82,15 +85,15 @@ header {
   font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: .6px;
   padding: 3px 9px; border-radius: 20px; text-transform: uppercase;
 }
-.hdr-pill.modeled { background: rgba(183,165,122,.25); color: var(--uw-gold); border: 1px solid rgba(183,165,122,.4); }
-.hdr-pill.psrc    { background: rgba(255,255,255,.12); color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.2); }
+.hdr-pill.modeled { background: rgba(14,165,233,.18); color: #E0F2FE; border: 1px solid rgba(14,165,233,.35); }
+.hdr-pill.psrc    { background: rgba(255,255,255,.12); color: rgba(255,255,255,.9); border: 1px solid rgba(255,255,255,.18); }
 
 /* ── Body: sidebar + map content ── */
 .body { display: flex; flex: 1; overflow: hidden; }
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 290px; flex-shrink: 0;
+  width: 300px; flex-shrink: 0;
   background: var(--card);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
@@ -113,10 +116,11 @@ header {
 /* KPI grid */
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .kpi-card {
-  background: var(--bg); border-radius: var(--radius-sm); padding: 10px 11px;
+  background: #F8FAFC; border-radius: var(--radius-sm); padding: 11px 12px;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
-.kpi-card.accent { background: var(--uw-purple-pale); border-color: rgba(75,46,131,.15); }
+.kpi-card.accent { background: var(--uw-purple-pale); border-color: rgba(14,165,233,.2); }
 .kpi-label {
   font-family: var(--font-sans); font-size: 9px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .8px; color: var(--text-muted); margin-bottom: 3px;
@@ -143,7 +147,7 @@ header {
   border: 1px solid var(--border); background: var(--bg);
   font-family: var(--font-sans); font-size: 12px; color: var(--text-primary);
   outline: none; appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235C5470'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23475569'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
   cursor: pointer;
 }
@@ -204,14 +208,14 @@ header {
 .layer-btn:hover { border-color: var(--uw-purple); color: var(--uw-purple); }
 .layer-btn.active {
   background: var(--uw-purple); border-color: var(--uw-purple);
-  color: #fff; box-shadow: 0 2px 6px rgba(75,46,131,.3);
+  color: #fff; box-shadow: 0 2px 10px rgba(14,165,233,.24);
 }
 .layer-btn.buf-btn {
   background: transparent; border: 1px dashed var(--border);
   color: var(--text-muted);
 }
 .layer-btn.buf-btn.active {
-  background: rgba(75,46,131,.08); border-color: var(--uw-purple); color: var(--uw-purple);
+  background: rgba(14,165,233,.08); border-color: var(--uw-purple); color: var(--uw-purple);
 }
 .layer-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
 
@@ -259,7 +263,7 @@ header {
 .data-table thead th:hover { color: var(--uw-purple); }
 .data-table tbody tr { transition: background .1s; cursor: pointer; }
 .data-table tbody tr:hover { background: var(--uw-purple-pale); }
-.data-table tbody tr.highlighted { background: #EDE8F5; }
+.data-table tbody tr.highlighted { background: var(--uw-purple-pale); }
 .data-table tbody td {
   padding: 7px 12px; border-bottom: 1px solid #F4F1EC; color: var(--text-primary);
   white-space: nowrap;
@@ -339,7 +343,7 @@ header {
   font-size: 10px; font-weight: 600; color: var(--text-secondary);
 }
 .score-bar-bg {
-  height: 7px; background: #EDE9E3; border-radius: 4px; overflow: hidden;
+  height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden;
 }
 .score-bar-fill { height: 100%; border-radius: 4px; }
 .score-row-val {
@@ -506,17 +510,17 @@ header {
       <div class="sb-heading">Effectiveness Tier</div>
       <div class="tier-legend">
         <div class="tier-row active" id="tr-HIGH" onclick="toggleTier('HIGH')">
-          <div class="tier-dot" style="background:#2D6A4F"></div>
+          <div class="tier-dot" style="background:#16A34A"></div>
           <span class="tier-row-label">High (≥ 75)</span>
           <span class="tier-count" id="tc-HIGH">—</span>
         </div>
         <div class="tier-row active" id="tr-MEDIUM" onclick="toggleTier('MEDIUM')">
-          <div class="tier-dot" style="background:#E9C46A"></div>
+          <div class="tier-dot" style="background:#F59E0B"></div>
           <span class="tier-row-label">Medium (55–74)</span>
           <span class="tier-count" id="tc-MEDIUM">—</span>
         </div>
         <div class="tier-row active" id="tr-LOW" onclick="toggleTier('LOW')">
-          <div class="tier-dot" style="background:#C62828"></div>
+          <div class="tier-dot" style="background:#DC2626"></div>
           <span class="tier-row-label">Low (&lt; 55)</span>
           <span class="tier-count" id="tc-LOW">—</span>
         </div>
@@ -651,17 +655,17 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 /* UC Polygon layer (always on) */
 const ucGroup = L.layerGroup().addTo(map);
 const ucColors = {
-  'Downtown Seattle':         '#4B2E83',
-  'South Lake Union':         '#6A4BAA',
-  'Capitol Hill / First Hill':'#8A6BBB',
-  'University District':      '#3A2066',
-  'Uptown / Queen Anne':      '#5C3D99',
-  'Northgate':                '#7755AA',
+  'Downtown Seattle':         '#0EA5E9',
+  'South Lake Union':         '#10B981',
+  'Capitol Hill / First Hill':'#F59E0B',
+  'University District':      '#6366F1',
+  'Uptown / Queen Anne':      '#8B5CF6',
+  'Northgate':                '#EC4899',
 };
 
 UC_DATA.forEach(uc => {
   if (!uc.coords || uc.coords.length < 3) return;
-  const col = ucColors[uc.name] || '#4B2E83';
+  const col = ucColors[uc.name] || '#0EA5E9';
   const poly = L.polygon(uc.coords, {
     color: col, weight: 2.5, opacity: .8,
     fillColor: col, fillOpacity: .06,
@@ -694,16 +698,16 @@ function lerpColor(c1, c2, t) {
 }
 const LAYER_DEFS = {
   tier:     { title: 'Effectiveness Tier', type: 'tier' },
-  demand:   { title: 'Commercial Demand Score', type: 'gradient', field:'demand',   max:40,  lo:'#E8D5A3', hi:'#2A1A4E' },
-  network:  { title: 'Network Importance Score', type: 'gradient', field:'network',  max:25,  lo:'#E8EDF4', hi:'#1A3A6A' },
-  turnover: { title: 'Turnover Efficiency Score', type: 'gradient', field:'turnover', max:20,  lo:'#E8F5E9', hi:'#1B5E20' },
-  temporal: { title: 'Temporal Coverage Score',  type: 'gradient', field:'temporal', max:15,  lo:'#FFF3E0', hi:'#E65100' },
+  demand:   { title: 'Commercial Demand Score', type: 'gradient', field:'demand',   max:40,  lo:'#E0F2FE', hi:'#0EA5E9' },
+  network:  { title: 'Network Importance Score', type: 'gradient', field:'network',  max:25,  lo:'#ECFDF3', hi:'#0F766E' },
+  turnover: { title: 'Turnover Efficiency Score', type: 'gradient', field:'turnover', max:20,  lo:'#FEF3C7', hi:'#D97706' },
+  temporal: { title: 'Temporal Coverage Score',  type: 'gradient', field:'temporal', max:15,  lo:'#F4E4E0', hi:'#B91C1C' },
 };
 
 function getMarkerColor(d, layer) {
   const def = LAYER_DEFS[layer];
   if (def.type === 'tier') {
-    return { HIGH:'#2D6A4F', MEDIUM:'#E9C46A', LOW:'#C62828' }[d.tier] || '#888';
+    return { HIGH:'#16A34A', MEDIUM:'#F59E0B', LOW:'#DC2626' }[d.tier] || '#888';
   }
   const t = Math.min(1, Math.max(0, d[def.field] / def.max));
   return lerpColor(def.lo, def.hi, t);
@@ -718,7 +722,7 @@ function getMarkerRadius(d, layer) {
 
 /* ──────────────────── POPUP BUILDER ──────────────────── */
 function buildPopup(d) {
-  const scoreBarColor = { demand:'#4B2E83', network:'#B7A57A', turnover:'#2D6A4F', temporal:'#E65100' };
+  const scoreBarColor = { demand:'#0EA5E9', network:'#0F766E', turnover:'#16A34A', temporal:'#B91C1C' };
   const maxes = { demand:40, network:25, turnover:20, temporal:15 };
   const labels= { demand:'Comm. Demand', network:'Network Importance', turnover:'Turnover Effcy.', temporal:'Temporal Coverage' };
 
@@ -769,7 +773,7 @@ function renderMarkers(data) {
   if (showHeat) {
     heatLayer = L.heatLayer(heatData, {
       radius: 30, blur: 25, maxZoom: 17,
-      gradient: { 0.0:'#E8D5A3', 0.4:'#B7A57A', 0.7:'#6A4BAA', 1.0:'#2A1A4E' }
+      gradient: { 0.0:'#E0F2FE', 0.4:'#38BDF8', 0.7:'#0EA5E9', 1.0:'#0B749E' }
     }).addTo(map);
   }
 
@@ -787,8 +791,8 @@ function renderMarkers(data) {
 
     if (showBuffers) {
       L.circle([d.lat, d.lon], {
-        radius: 100, color: '#4B2E83', weight: 1, opacity: .4,
-        fillColor: '#4B2E83', fillOpacity: .06
+        radius: 100, color: '#0EA5E9', weight: 1, opacity: .35,
+        fillColor: '#0EA5E9', fillOpacity: .06
       }).addTo(bufferGroup);
     }
   });
@@ -806,13 +810,13 @@ function updateLegend(layer) {
 
   if (def.type === 'tier') {
     bodyEl.innerHTML = `
-      <div class="legend-item"><div class="legend-swatch" style="background:#2D6A4F"></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#16A34A"></div>
         <div><div class="legend-text">High</div><div class="legend-sub">Score ≥ 75</div></div></div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#E9C46A"></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#F59E0B"></div>
         <div><div class="legend-text">Medium</div><div class="legend-sub">Score 55–74</div></div></div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#C62828"></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#DC2626"></div>
         <div><div class="legend-text">Low</div><div class="legend-sub">Score &lt; 55</div></div></div>
-      <div class="legend-item" style="margin-top:8px"><div class="legend-swatch rect" style="background:rgba(75,46,131,.12);border:2px dashed #4B2E83;width:18px;height:14px;border-radius:3px"></div>
+      <div class="legend-item" style="margin-top:8px"><div class="legend-swatch rect" style="background:rgba(14,165,233,.12);border:2px dashed #0EA5E9;width:18px;height:14px;border-radius:3px"></div>
         <div><div class="legend-text">Urban Center</div><div class="legend-sub">PSRC designated</div></div></div>`;
   } else {
     const grad = `linear-gradient(to right, ${def.lo}, ${def.hi})`;
@@ -893,9 +897,8 @@ function updateKPIs() {
 }
 
 /* ──────────────────── CHARTS ──────────────────── */
-const UW = ['#4B2E83','#B7A57A','#2D6A4F','#2E86AB','#6A4BAA','#85754D'];
-Chart.defaults.font.family = "'Montserrat', sans-serif";
-Chart.defaults.color = '#5C5470';
+Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+Chart.defaults.color = '#334155';
 
 let chartHist, chartUC, chartScatter, chartRadar;
 
@@ -907,7 +910,7 @@ function initCharts() {
     type:'bar',
     data:{ labels: bins.slice(0,-1).map(b=>`${b}–${b+10}`), datasets:[{
       label:'CVLZs', data:[], borderRadius:4,
-      backgroundColor: bins.slice(0,-1).map(b => b>=70?'rgba(75,46,131,.8)':b>=50?'rgba(183,165,122,.8)':'rgba(198,40,40,.7)'),
+      backgroundColor: bins.slice(0,-1).map(b => b>=70?'rgba(16,163,74,.85)':b>=50?'rgba(245,158,11,.85)':'rgba(220,38,38,.78)'),
       borderWidth:0
     }]},
     options:{
@@ -940,9 +943,9 @@ function initCharts() {
   chartScatter = new Chart(scCtx, {
     type:'scatter',
     data:{ datasets:[
-      {label:'HIGH',  data:[], backgroundColor:'rgba(45,106,79,.7)',  pointRadius:4},
-      {label:'MEDIUM',data:[], backgroundColor:'rgba(233,196,106,.8)', pointRadius:4},
-      {label:'LOW',   data:[], backgroundColor:'rgba(198,40,40,.7)',  pointRadius:5},
+      {label:'HIGH',  data:[], backgroundColor:'rgba(22,163,74,.8)',  pointRadius:4},
+      {label:'MEDIUM',data:[], backgroundColor:'rgba(245,158,11,.8)', pointRadius:4},
+      {label:'LOW',   data:[], backgroundColor:'rgba(220,38,38,.78)', pointRadius:5},
     ]},
     options:{
       responsive:true, maintainAspectRatio:false, animation:false,
@@ -962,7 +965,7 @@ function initCharts() {
     data:{ labels:['Demand\n(/40)','Network\n(/25)','Turnover\n(/20)','Temporal\n(/15)'],
       datasets:[{
         label:'Avg score', data:[],
-        backgroundColor:['rgba(75,46,131,.8)','rgba(183,165,122,.85)','rgba(45,106,79,.8)','rgba(230,81,0,.7)'],
+        backgroundColor:['rgba(14,165,233,.82)','rgba(16,163,74,.82)','rgba(245,158,11,.88)','rgba(185,28,28,.78)'],
         borderRadius:4, borderWidth:0
       }]
     },
